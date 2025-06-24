@@ -5,7 +5,7 @@
 fz - Pipe commands to FZF
 
 ```
-	ffffffffffffffff                   
+    ffffffffffffffff                   
   f::::::::::::::::f                  
  f::::::::::::::::::f                 
  f::::::fffffff:::::f                 
@@ -35,10 +35,14 @@ Just type `fz` followed by a valid command. Type `fz --help` to see the availabl
 
 1. Get it:
 
-Download the file named `fz`.
+Download the file named `fz` and make it executable.
 
 ```bash
+# download fz to current folder
 curl -O https://raw.githubusercontent.com/lfromanini/fz/main/bin/fz
+
+# make it executable
+chmod +x fz
 ```
 
 2. Move it to a place in `${PATH}`:
