@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+APP_NAME="$( basename -- "${0}" )"
+VERSION="1.0.0"
+
+command -v fzf &>/dev/null || {
+	printf "%s\n" "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
+	exit 1
+}
+
+function fz::kill()
+{
+	# shellcheck disable=SC2086     # SC2086: Double quote to prevent globbing and word splitting.
+	ps aux | fzf --exact --header-lines=1 --tac | awk '{ print $2 }' | xargs --no-run-if-empty kill ${1}
+}
+
+function fz::man()
+{
+	man --apropos . \
+		| fzf --preview="sed 's/[ ()]//g' <<< {1}.{2} | xargs man" --query="^${*}" --reverse --select-1 \
+		| awk '{ gsub( /[()]/, "" ) ; print $1"."$2 }' \
+		| xargs --no-run-if-empty man
+}
+
+function fz::ssh()
+{
+	local fSshConfig=( "${HOME}/.ssh/config" "${HOME}/.ssh/config.d/"* )
+	local sshServer=""
+
+	sshServer="$( \
+		grep "^Host" "${fSshConfig[@]}" 2>/dev/null \
+			| awk '{ print $2 }' \
+			| fzf --height=6 --preview="ssh -G -T {} | head --lines=4 | column --table" --prompt="ssh > " \
+	)"
+
+	# shellcheck disable=SC2029     # SC2029: Note that, unescaped, this expands on the client side.
+	if [[ -n "${sshServer}" ]] ; then ssh "${@}" "${sshServer}" ; fi
+}
+
+function __fz::version()
+{
+	printf "%s\n" "${APP_NAME} ${VERSION}"
+}
+
+function __fz::help()
+{
+	__fz::version
+
+	cat <<- HEREDOC
+
+	Pipe commands to FZF.
+	Usage: ${APP_NAME} [COMMAND] [arguments for COMMAND]
+	       ${APP_NAME} [OPTION]
+
+	Commands:
+
+	$( declare -f | grep "^fz::" | sort --unique | awk 'FS=" " { gsub( /fz::/, "" ) ; print "    "$1 }' )
+
+	Options:
+
+	    -h, --help                display this help
+	    -V, --version             output version information
+
+	HEREDOC
+}
+
+function main()
+{
+	local arg="${1:---help}"
+
+	case "${arg}" in
+		-V|--version)
+			__fz::version
+			return 0
+		;;
+
+		-h|--help)
+			__fz::help
+			return 0
+		;;
+
+		*)
+			if ! declare -f | grep "^fz::${arg} ()" &>/dev/null ; then
+				printf "%s\n" "[${APP_NAME} error]: Found argument \"${arg}\" which wasn't expected. Try --help."
+				return 1
+			fi
+
+			shift
+			fz::"${arg}" "${@}"
+			return "${?}"
+		;;
+	esac
+}
+
+main "${@}"
