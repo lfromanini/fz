@@ -1,23 +1,26 @@
 #!/usr/bin/env bash
 
 APP_NAME="$( basename -- "${0}" )"
-VERSION="1.0.1"
-
-command -v fzf &>/dev/null || {
-	printf "%s\n" "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
-	exit 1
-}
+VERSION="1.0.2"
 
 function fz::kill()
 {
 	# shellcheck disable=SC2086     # SC2086: Double quote to prevent globbing and word splitting.
-	ps aux | fzf --exact --header-lines=1 --tac | awk '{ print $2 }' | xargs --no-run-if-empty kill ${1}
+	ps aux | fzf --exact --header-lines=1 --prompt="kill ${1:--SIGTERM} > " --tac | awk '{ print $2 }' | xargs --no-run-if-empty kill ${1:--SIGTERM}
 }
 
 function fz::man()
 {
+	local fzfPreview="sed 's/[ ()]//g' <<< {1}.{2} | xargs man"
+	local binBatcat=""
+
+	binBatcat="$( command -v batcat || command -v bat )"
+
+	[[ -n "${binBatcat}" ]] && \
+		fzfPreview+=' | sh -c "col --no-backspaces --spaces | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
+
 	man --apropos . \
-		| fzf --preview="sed 's/[ ()]//g' <<< {1}.{2} | xargs man" --query="^${*}" --reverse --select-1 \
+		| fzf --preview="${fzfPreview}" --prompt="man > " --query="^${*}" --reverse --select-1 \
 		| awk '{ gsub( /[()]/, "" ) ; print $1"."$2 }' \
 		| xargs --no-run-if-empty man
 }
@@ -35,11 +38,6 @@ function fz::ssh()
 
 	# shellcheck disable=SC2029     # SC2029: Note that, unescaped, this expands on the client side.
 	if [[ -n "${sshServer}" ]] ; then ssh "${@}" "${sshServer}" ; fi
-}
-
-function __fz::version()
-{
-	printf "%s\n" "${APP_NAME} ${VERSION}"
 }
 
 function __fz::help()
@@ -63,9 +61,14 @@ function __fz::help()
 	HEREDOC
 }
 
-function main()
+function __fz::main()
 {
 	local arg="${1:---help}"
+
+	command -v fzf &>/dev/null || {
+		printf "%s\n" "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
+		return 1
+	}
 
 	case "${arg}" in
 		-V|--version)
@@ -91,4 +94,6 @@ function main()
 	esac
 }
 
-main "${@}"
+function __fz::version() { printf "%s\n" "${APP_NAME} ${VERSION}" ; }
+
+__fz::main "${@}"
