@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 APP_NAME="$( basename -- "${0}" )"
-VERSION="1.0.4"
+VERSION="1.0.5"
 
 function fz::kill()
 {
@@ -28,17 +28,22 @@ function fz::man()
 
 function fz::ssh()
 {
+	shopt -s nullglob
+
 	local fSshConfig=( /etc/ssh/ssh_config "${HOME}"/.ssh/config "${HOME}"/.ssh/config.d/* )
+	local discoveredHosts=""
 	local sshServer=""
 
 	# shellcheck disable=SC2207     # SC2207: Prefer `mapfile` or `read -a` to split command output (or quote to avoid splitting).
 	fSshConfig+=( $( awk '/^[[:space:]]*Include[[:space:]]+/ { print $2 }' "${fSshConfig[@]}" 2>/dev/null ) )
 
 	# shellcheck disable=SC2046     # SC2046: Quote this to prevent word splitting.
-	sshServer="$( \
-		awk '/^[[:space:]]*Host[[:space:]]+/ { print $2 }' $( for fp in "${fSshConfig[@]}" ; do [[ -f "${fp}" ]] && printf "%q " "${fp}" ; done ) \
-			| fzf --height=6 --preview="ssh -G -T {} | head -n 4 | column -t" --prompt="ssh > " --reverse --select-1 \
-	)"
+	discoveredHosts=$( \
+		awk '$1=="Host" { for( i = 2 ; i <= NF ; i++ ) if( $i !~ /\*/ ) print $i }' $( for fp in "${fSshConfig[@]}" ; do [[ -f "${fp}" ]] && printf "%q " "${fp}" ; done ) ; \
+		awk '/^[^|]/ { split( $1, h, "," ) ; for( i in h ){ gsub( /^\[|\](:[0-9]+)?$/, "", h[i] ) ; print h[i] } }' "${HOME}"/.ssh/known_hosts 2>/dev/null \
+	)
+
+	sshServer="$( printf "%s\n" "${discoveredHosts}" | sort -u | fzf --height=6 --preview="ssh -G -T {} | head -n 4 | column -t" --prompt="ssh > " --reverse --select-1 )"
 
 	# shellcheck disable=SC2029     # SC2029: Note that, unescaped, this expands on the client side.
 	if [[ -n "${sshServer}" ]] ; then ssh "${@}" "${sshServer}" ; fi
@@ -51,6 +56,7 @@ function __fz::help()
 	cat <<- HEREDOC
 
 	Pipe commands to FZF.
+
 	Usage: ${APP_NAME} [COMMAND] [arguments for COMMAND]
 	       ${APP_NAME} [OPTION]
 
