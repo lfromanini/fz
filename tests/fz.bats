@@ -50,15 +50,18 @@ teardown() { true ; }
 @test "fz	# fzf not installed" {
 	local cleanPath=""
 
-	while IFS= read -r -d ':' dir; do
-		command -v "${dir}/fzf" &>/dev/null || cleanPath+="${dir}:"
+	while IFS= read -r -d ":" dir ; do
+		command -v "${dir}"/fzf &>/dev/null || cleanPath+="${dir}:"
 	done <<< "${PATH}:"
 
 	# shellcheck disable=SC2030     # SC2030: Modification of var is local (to subshell caused by pipeline).
 	# shellcheck disable=SC2031     # SC2031: var was modified in a subshell. That change might be lost.
 	local PATH="${cleanPath}"
 
-	run bash "${FZ}"
+	bats_require_minimum_version 1.5.0
+	set +o errexit
+	run -127 bash "${FZ}"
+
 	[[ "${status}" -ne 0 ]]
 	[[ "${output}" == *"error"* ]]
 }
