@@ -63,7 +63,15 @@ teardown() { true ; }
 	run -127 bash "${FZ}"
 
 	[[ "${status}" -ne 0 ]]
-	[[ "${output}" == *"error"* ]]
+	[[ "${output}" == "[fz error]:"* ]]
+}
+
+@test "fz unsupportedArgument" {
+
+	run bash "${FZ}" unsupportedArgument
+
+	[[ "${status}" -ne 0 ]]
+	[[ "${output}" == "[fz error]:"*"unsupportedArgument"* ]]
 }
 
 @test "fz kill" {
