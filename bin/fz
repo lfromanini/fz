@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 APP_NAME="$( basename -- "${0}" )"
-VERSION="1.0.5"
+VERSION="1.1.0"
 
 function fz::kill()
 {
@@ -47,6 +47,45 @@ function fz::ssh()
 
 	# shellcheck disable=SC2029     # SC2029: Note that, unescaped, this expands on the client side.
 	if [[ -n "${sshServer}" ]] ; then ssh "${@}" "${sshServer}" ; fi
+}
+
+command -v tmux &>/dev/null && function fz::tmux()
+{
+	local selection=""
+	local key=""
+	local selectedType=""
+	local selectedTarget=""
+
+	selection="$( {
+			tmux list-sessions -F "session #S _ #{session_windows}w"
+			tmux list-windows -a -F "window #S:#I #W #{window_panes}p"
+			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
+		} \
+		| column -t | fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ Ctrl + k ] .. kill\n\n' --prompt="tmux > " --reverse --select-1 --tmux | xargs printf "%q "
+	)"
+
+	[[ -z "${selection}" ]] && return 0
+
+	key="$( awk '{ print $1 }' <<< "${selection}" )"
+	selectedType="$( awk '{ print $2 }' <<< "${selection}" )"
+	selectedTarget="$( awk '{ print $3 }' <<< "${selection}" )"
+
+	if [[ "${key}" == "enter" ]] ; then
+
+		case "${selectedType}" in
+			session) if [[ -n "${TMUX}" ]]; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
+			window) if [[ -n "${TMUX}" ]]; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" ';' select-window -t "${selectedTarget}" ; fi ;;
+			pane) if [[ -n "${TMUX}" ]]; then tmux select-window -t "${selectedTarget}" ';' select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" ';' select-pane -t "${selectedTarget}" ; fi ;;
+		esac
+
+	elif [[ "${key}" == "ctrl-k" ]] ; then
+
+		case "${selectedType}" in
+			session) tmux kill-session -t "${selectedTarget}" ;;
+			window) tmux kill-window -t "${selectedTarget}" ;;
+			pane) tmux kill-pane -t "${selectedTarget}" ;;
+		esac
+	fi
 }
 
 function __fz::help()
