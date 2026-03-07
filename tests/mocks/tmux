@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+case "${1}" in
+
+	list-sessions|list-windows|list-panes)
+		# output piped to fzf mock which ignores stdin
+	;;
+
+	*)
+		echo "mocked-tmux ${*}"
+	;;
+esac

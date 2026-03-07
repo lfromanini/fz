@@ -5,7 +5,10 @@ VERSION="1.1.0"
 
 function fz::kill()
 {
-	ps aux | fzf --exact --header-lines=1 --prompt="kill ${1:--SIGTERM} > " --select-1 --tac | awk '{ print $2 }' | xargs -I {} kill "${1:--SIGTERM}" {}
+	local signal="${1:--SIGTERM}"
+
+	[[ "${signal}" == -* ]] || signal="-${signal}"
+	ps aux | fzf --exact --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac | awk '{ print $2 }' | xargs -I {} kill "${signal}" {}
 }
 
 function fz::man()
