@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 APP_NAME="$( basename -- "${0}" )"
-VERSION="1.1.0"
+VERSION="1.2.0"
 
 function fz::kill()
 {
@@ -91,6 +91,69 @@ command -v tmux &>/dev/null && function fz::tmux()
 	fi
 }
 
+function __fz::completion::bash()
+{
+	cat <<- 'HEREDOC'
+	_fz_completion() {
+		local cur prev
+		cur="${COMP_WORDS[COMP_CWORD]}"
+		prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+		local commands="man kill ssh -h --help -V --version"
+
+		command -v tmux &>/dev/null && commands+=" tmux"
+
+		if [[ $COMP_CWORD -eq 1 ]]; then
+			COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
+			return
+		fi
+
+		if [[ "$prev" == "kill" ]]; then
+			local signals="$(kill -l | tr ' ' '\n' | sed 's/^/SIG/' )"
+			COMPREPLY=( $(compgen -W "$signals" -- "$cur") )
+			return
+		fi
+	}
+
+	complete -F _fz_completion fz
+	HEREDOC
+}
+
+function __fz::completion::zsh()
+{
+	cat <<- 'HEREDOC'
+	#compdef fz
+
+	_fz() {
+		local -a commands
+		commands=(
+			'man:Search man pages'
+			'kill:Kill a process with optional signal or SIGTERM as default'
+			'ssh:SSH to a known server'
+			'-h:Show help'
+			'--help:Show help'
+			'-V:Show version'
+			'--version:Show version'
+		)
+
+		command -v tmux &>/dev/null && commands+=( 'tmux:Tmux management' )
+
+		if (( CURRENT == 2 )); then
+			_describe 'command' commands
+			return
+		fi
+
+		if [[ "$words[2]" == "kill" ]]; then
+			local -a signals
+			signals=(${(f)"$(kill -l | tr ' ' '\n' | sed 's/^/SIG/')"})
+			_describe 'signal' signals
+		fi
+	}
+
+	compdef _fz fz
+	HEREDOC
+}
+
 function __fz::help()
 {
 	__fz::version
@@ -116,6 +179,18 @@ function __fz::help()
 function __fz::main()
 {
 	local arg="${1:---help}"
+
+	case "${arg}" in
+		--bash-completion)
+			__fz::completion::bash
+			return 0
+		;;
+
+		--zsh-completion)
+			__fz::completion::zsh
+			return 0
+		;;
+	esac
 
 	command -v fzf &>/dev/null || {
 		printf "%s\n" "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."

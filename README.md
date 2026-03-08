@@ -25,15 +25,15 @@ fffffffff            zzzzzzzzzzzzzzzzz
 
 ## Description
 
-**fz** is a simple Bash script to pipe commands to [FZF](https://github.com/junegunn/fzf) so you can benefit from previewing, filtering, etc.
+**fz** is a simple Bash script to pipe commands to [FZF](https://github.com/junegunn/fzf) so you can benefit from features like previewing and filtering.
 
 ## Usage
 
-Just type `fz` followed by a valid command. Type `fz --help` to see the available commands.
+Run `fz` followed by a valid command. Type `fz --help` to see the available commands.
 
 ## Installation
 
-1. Get it:
+1. Download the script:
 
 Download the file named `fz` and make it executable.
 
@@ -54,7 +54,7 @@ Choose a location from `${PATH}`.
 tr ":" "\n" <<< "${PATH}" | sort --unique
 ```
 
-Move script to the choosen folder, for example:
+Move the script to the choosen folder, for example:
 
 ```bash
 mv fz ~/bin/
@@ -66,7 +66,21 @@ Make sure to use `sudo` if moving to a system folder.
 sudo mv fz /usr/local/bin/
 ```
 
-3. Done!
+3. Add completions to `.bashrc` and `.zshrc`
+
+Add completion so you can type `fz <TAB><TAB>` or `fz kill <TAB><TAB>` to autocomplete:
+
+```bash
+# bash
+echo 'source <( fz --bash-completion )' >> ~/.bashrc
+
+# zsh
+echo 'source <( fz --zsh-completion )' >> ~/.zshrc
+```
+
+Restart your shell for the changes to take effect.
+
+4. Done!
 
 #### Requirements
 
