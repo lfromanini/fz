@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 APP_NAME="$( basename -- "${0}" )"
-VERSION="1.2.1"
+VERSION="1.2.2"
 
 function fz::kill()
 {
@@ -41,10 +41,10 @@ function fz::ssh()
 	fSshConfig+=( $( awk '/^[[:space:]]*Include[[:space:]]+/ { print $2 }' "${fSshConfig[@]}" 2>/dev/null ) )
 
 	# shellcheck disable=SC2046     # SC2046: Quote this to prevent word splitting.
-	discoveredHosts=$( \
-		awk '$1=="Host" { for( i = 2 ; i <= NF ; i++ ) if( $i !~ /\*/ ) print $i }' $( for fp in "${fSshConfig[@]}" ; do [[ -f "${fp}" ]] && printf "%q " "${fp}" ; done ) ; \
-		awk '/^[^|]/ { split( $1, h, "," ) ; for( i in h ){ gsub( /^\[|\](:[0-9]+)?$/, "", h[i] ) ; print h[i] } }' "${HOME}"/.ssh/known_hosts 2>/dev/null \
-	)
+	discoveredHosts=$( {
+		awk '$1=="Host" { for( i = 2 ; i <= NF ; i++ ) if( $i !~ /\*/ ) print $i }' $( for fp in "${fSshConfig[@]}" ; do [[ -f "${fp}" ]] && printf "%q " "${fp}" ; done )
+		awk '/^[^|]/ { split( $1, h, "," ) ; for( i in h ){ gsub( /^\[|\](:[0-9]+)?$/, "", h[i] ) ; print h[i] } }' "${HOME}"/.ssh/known_hosts 2>/dev/null
+	} )
 
 	sshServer="$( printf "%s\n" "${discoveredHosts}" | sort -u | fzf --height=6 --preview="ssh -G -T {} | head -n 4 | column -t" --prompt="ssh > " --reverse --select-1 )"
 
@@ -64,7 +64,9 @@ command -v tmux &>/dev/null && function fz::tmux()
 			tmux list-windows -a -F "window #S:#I #W #{window_panes}p"
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
-		| column -t | fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ Ctrl + k ] .. kill\n\n' --prompt="tmux > " --reverse --select-1 --tmux | xargs printf "%q "
+		| column -t \
+		| fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ Ctrl + k ] .. kill\n\n' --prompt="tmux > " --reverse --select-1 --tmux \
+		| xargs printf "%q "
 	)"
 
 	[[ -z "${selection}" ]] && return 0
@@ -76,9 +78,9 @@ command -v tmux &>/dev/null && function fz::tmux()
 	if [[ "${key}" == "enter" ]] ; then
 
 		case "${selectedType}" in
-			session) if [[ -n "${TMUX}" ]]; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
-			window) if [[ -n "${TMUX}" ]]; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" ';' select-window -t "${selectedTarget}" ; fi ;;
-			pane) if [[ -n "${TMUX}" ]]; then tmux select-window -t "${selectedTarget}" ';' select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" ';' select-pane -t "${selectedTarget}" ; fi ;;
+			session) if [[ -n "${TMUX}" ]] ; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
+			window) if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-window -t "${selectedTarget}" ; fi ;;
+			pane) if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 		esac
 
 	elif [[ "${key}" == "ctrl-k" ]] ; then
@@ -102,15 +104,11 @@ function __fz::completion::bash()
 
 		commands+="$( fz --help | awk '/^Commands:/{ f = 1 ; next }/^Options:/{ f = 0 } f && NF { printf " %s", $1 }' )"
 
-		if [[ ${COMP_CWORD} -eq 1 ]]; then
+		if [[ ${COMP_CWORD} -eq 1 ]] ; then
 			COMPREPLY=( $( compgen -W "${commands}" -- "${cur}" ) )
-			return
-		fi
-
-		if [[ "${prev}" == "kill" ]]; then
-			local signals="$( kill -l | tr " " "\n" | sed "s/^/SIG/" )"
+		elif [[ "${prev}" == "kill" ]] ; then
+			local signals="$( kill -l | awk '{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", $i }' )"
 			COMPREPLY=( $( compgen -W "${signals}" -- "${cur}" ) )
-			return
 		fi
 	}
 
@@ -127,17 +125,14 @@ function __fz::completion::zsh()
 		local -a commands=( "-h:Show help" "--help:Show help" "-V:Show version" "--version:Show version" )
 		local cmd=""
 
-		while IFS= read -r cmd; do
+		while IFS= read -r cmd ; do
 			commands+=( "${cmd}:Run fz ${cmd}" )
 		done < <( fz --help | awk '/^Commands:/{ f = 1 ; next }/^Options:/{ f = 0 } f && NF { print $1 }' )
 
-		if (( CURRENT == 2 )); then
+		if (( CURRENT == 2 )) ; then
 			_describe 'command' commands
-			return
-		fi
-
-		if [[ "${words[2]}" == "kill" ]]; then
-			local -a signals=( ${(f)"$( kill -l | tr " " "\n" | sed "s/^/SIG/" )"} )
+		elif [[ "${words[2]}" == "kill" ]] ; then
+			local -a signals=( ${(f)"$( kill -l | awk '{ for( i = 1 ; i <= NF ; i++ ) print "SIG" $i }' )"} )
 			_describe 'signal' signals
 		fi
 	}
