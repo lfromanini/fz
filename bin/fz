@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 APP_NAME="$( basename -- "${0}" )"
-VERSION="1.2.0"
+VERSION="1.2.1"
 
 function fz::kill()
 {
@@ -95,22 +95,21 @@ function __fz::completion::bash()
 {
 	cat <<- 'HEREDOC'
 	_fz_completion() {
-		local cur prev
-		cur="${COMP_WORDS[COMP_CWORD]}"
-		prev="${COMP_WORDS[COMP_CWORD-1]}"
+		local cur="${COMP_WORDS[COMP_CWORD]}"
+		local prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-		local commands="man kill ssh -h --help -V --version"
+		local commands="-h --help -V --version"
 
-		command -v tmux &>/dev/null && commands+=" tmux"
+		commands+="$( fz --help | awk '/^Commands:/{ f = 1 ; next }/^Options:/{ f = 0 } f && NF { printf " %s", $1 }' )"
 
-		if [[ $COMP_CWORD -eq 1 ]]; then
-			COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
+		if [[ ${COMP_CWORD} -eq 1 ]]; then
+			COMPREPLY=( $( compgen -W "${commands}" -- "${cur}" ) )
 			return
 		fi
 
-		if [[ "$prev" == "kill" ]]; then
-			local signals="$(kill -l | tr ' ' '\n' | sed 's/^/SIG/' )"
-			COMPREPLY=( $(compgen -W "$signals" -- "$cur") )
+		if [[ "${prev}" == "kill" ]]; then
+			local signals="$( kill -l | tr " " "\n" | sed "s/^/SIG/" )"
+			COMPREPLY=( $( compgen -W "${signals}" -- "${cur}" ) )
 			return
 		fi
 	}
@@ -125,27 +124,20 @@ function __fz::completion::zsh()
 	#compdef fz
 
 	_fz() {
-		local -a commands
-		commands=(
-			'man:Search man pages'
-			'kill:Kill a process with optional signal or SIGTERM as default'
-			'ssh:SSH to a known server'
-			'-h:Show help'
-			'--help:Show help'
-			'-V:Show version'
-			'--version:Show version'
-		)
+		local -a commands=( "-h:Show help" "--help:Show help" "-V:Show version" "--version:Show version" )
+		local cmd=""
 
-		command -v tmux &>/dev/null && commands+=( 'tmux:Tmux management' )
+		while IFS= read -r cmd; do
+			commands+=( "${cmd}:Run fz ${cmd}" )
+		done < <( fz --help | awk '/^Commands:/{ f = 1 ; next }/^Options:/{ f = 0 } f && NF { print $1 }' )
 
 		if (( CURRENT == 2 )); then
 			_describe 'command' commands
 			return
 		fi
 
-		if [[ "$words[2]" == "kill" ]]; then
-			local -a signals
-			signals=(${(f)"$(kill -l | tr ' ' '\n' | sed 's/^/SIG/')"})
+		if [[ "${words[2]}" == "kill" ]]; then
+			local -a signals=( ${(f)"$( kill -l | tr " " "\n" | sed "s/^/SIG/" )"} )
 			_describe 'signal' signals
 		fi
 	}
@@ -176,6 +168,8 @@ function __fz::help()
 	HEREDOC
 }
 
+function __fz::version() { printf "%s\n" "${APP_NAME} ${VERSION}" ; }
+
 function __fz::main()
 {
 	local arg="${1:---help}"
@@ -190,29 +184,27 @@ function __fz::main()
 			__fz::completion::zsh
 			return 0
 		;;
-	esac
-
-	command -v fzf &>/dev/null || {
-		printf "%s\n" "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
-		return 1
-	}
-
-	case "${arg}" in
-		-V|--version)
-			__fz::version
-			return 0
-		;;
 
 		-h|--help)
 			__fz::help
 			return 0
 		;;
 
+		-V|--version)
+			__fz::version
+			return 0
+		;;
+
 		*)
-			if [[ "$( type -t "fz::${arg}" )" != "function" ]] ; then
+			command -v fzf &>/dev/null || {
+				printf "%s\n" "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
+				return 1
+			}
+
+			[[ "$( type -t "fz::${arg}" )" == "function" ]] || {
 				printf "%s\n" "[${APP_NAME} error]: Found argument \"${arg}\" which wasn't expected. Try --help."
 				return 1
-			fi
+			}
 
 			shift
 			fz::"${arg}" "${@}"
@@ -220,7 +212,5 @@ function __fz::main()
 		;;
 	esac
 }
-
-function __fz::version() { printf "%s\n" "${APP_NAME} ${VERSION}" ; }
 
 __fz::main "${@}"
