@@ -35,7 +35,7 @@ end_of_line = crlf
 indent_style = space
 
 ; markdown files
-[*.{md,mdx,Rmd}]
+[*.{md,md.j2,mdx,Rmd}]
 trim_trailing_whitespace = false
 
 ; python
