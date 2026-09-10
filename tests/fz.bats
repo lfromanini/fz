@@ -4,11 +4,11 @@
 # shellcheck disable=SC2030     # SC2030: Modification of var is local (to subshell caused by pipeline).
 # shellcheck disable=SC2031     # SC2031: var was modified in a subshell. That change might be lost.
 
-setup() {
+function setup() {
 	load "test_helper/common.bash"
 }
 
-teardown() { true ; }
+function teardown() { true ; }
 
 @test "fz --help" {
 	run bash "${FZ}" --help
@@ -65,6 +65,19 @@ teardown() { true ; }
 
 	[[ "${status}" -ne 0 ]]
 	[[ "${output}" == "[fz error]:"*"unsupportedArgument"* ]]
+}
+
+@test "fz env" {
+	function stripColors() { printf "%s" "${*}" | sed $'s/\033\\[[0-9;]*m//g' ; }
+
+	local PATH="${PATH_MOCKS}:${PATH}"
+
+	export FZF_MOCK_OUTPUT="HOME=${HOME}"
+
+	run bash "${FZ}" env
+
+	[[ "${status}" -eq 0 ]]
+	[[ "$( stripColors "${output}" )" == "HOME=${HOME}" ]]
 }
 
 @test "fz kill" {
