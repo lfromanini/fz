@@ -5,7 +5,7 @@
 fz - Pipe commands to FZF
 
 ```
-    ffffffffffffffff                   
+    ffffffffffffffff                  
   f::::::::::::::::f                  
  f::::::::::::::::::f                 
  f::::::fffffff:::::f                 
