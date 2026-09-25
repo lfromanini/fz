@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
-[[ "${1}" == "--bash" ]] && {
-	printf '%s\n' '__fzf_list_hosts() { printf "myServer" ; }'
-	exit 0
-}
+case "${1}" in
 
-printf "%b" "${FZF_MOCK_OUTPUT}"
+	--bash)
+		printf "%s\n" '__fzf_list_hosts() { printf "myServer" ; }'
+	;;
+
+	*)
+		printf "%b" "${FZF_MOCK_OUTPUT}"
+	;;
+esac

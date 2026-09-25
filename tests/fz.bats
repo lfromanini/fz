@@ -3,6 +3,7 @@
 # shellcheck disable=SC1090     # SC1090: Can't follow non-constant source. Use a directive to specify location
 # shellcheck disable=SC2030     # SC2030: Modification of var is local (to subshell caused by pipeline).
 # shellcheck disable=SC2031     # SC2031: var was modified in a subshell. That change might be lost.
+# shellcheck disable=SC2034     # SC2034: foo appears unused. Verify it or export it.
 
 function setup() {
 	load "test_helper/common.bash"
@@ -11,242 +12,206 @@ function setup() {
 function teardown() { true ; }
 
 @test "fz --help" {
-	run bash "${FZ}" --help
+	run bash "${BIN_FZ}" --help
 
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == *"Usage:"* ]]
 }
 
 @test "fz -h" {
-	run bash "${FZ}" -h
+	run bash "${BIN_FZ}" -h
 
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == *"Usage:"* ]]
 }
 
 @test "fz       # no arguments provided" {
-	run bash "${FZ}"
+	run bash "${BIN_FZ}"
 
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == *"Usage:"* ]]
 }
 
 @test "fz --version" {
-	source "${FZ}"
+	source "${BIN_FZ}"
+	run bash "${BIN_FZ}" --version
 
-	run bash "${FZ}" --version
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "fz ${VERSION}" ]]
 }
 
 @test "fz -V" {
-	source "${FZ}"
+	source "${BIN_FZ}"
+	run bash "${BIN_FZ}" -V
 
-	run bash "${FZ}" -V
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "fz ${VERSION}" ]]
 }
 
 @test "fz       # fzf not installed" {
-	local PATH=""
-
 	bats_require_minimum_version 1.5.0
 	set +o errexit
-	run -127 bash "${FZ}"
+	PATH="" run -127 bash "${BIN_FZ}"
 
-	[[ "${status}" -ne 0 ]]
+	[[ "${status}" != 0 ]]
 	[[ "${output}" == "[fz error]:"* ]]
 }
 
 @test "fz unsupportedArgument" {
-	run bash "${FZ}" unsupportedArgument
+	run bash "${BIN_FZ}" unsupportedArgument
 
-	[[ "${status}" -ne 0 ]]
+	[[ "${status}" != 0 ]]
 	[[ "${output}" == "[fz error]:"*"unsupportedArgument"* ]]
 }
 
 @test "fz env" {
 	function stripColors() { printf "%s" "${*}" | sed $'s/\033\\[[0-9;]*m//g' ; }
 
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="HOME=${HOME}"
 
-	export FZF_MOCK_OUTPUT="HOME=${HOME}"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" env
 
-	run bash "${FZ}" env
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "$( stripColors "${output}" )" == "HOME=${HOME}" ]]
 }
 
 @test "fz kill" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="user 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
 
-	export FZF_MOCK_OUTPUT="user 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" kill
 
-	run bash "${FZ}" kill
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-kill -SIGTERM 12345" ]]
 }
 
 @test "fz kill -9" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="user 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
 
-	export FZF_MOCK_OUTPUT="user 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" kill -9
 
-	run bash "${FZ}" kill -9
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-kill -9 12345" ]]
 }
 
 @test "fz man" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="ls (1)               - list directory contents"
 
-	export FZF_MOCK_OUTPUT="ls (1)               - list directory contents"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" man
 
-	run bash "${FZ}" man
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-man 1 ls" ]]
 }
 
 @test "fz ssh" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="myServer"
 
-	export FZF_MOCK_OUTPUT="myServer"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" ssh
 
-	run bash "${FZ}" ssh
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-ssh myServer" ]]
 }
 
 @test "fz tmux  # tmux not installed" {
-	local PATH=""
-
 	bats_require_minimum_version 1.5.0
 	set +o errexit
-	run -127 bash "${FZ}" tmux
+	PATH="" run -127 bash "${BIN_FZ}" tmux
 
-	[[ "${status}" -ne 0 ]]
+	[[ "${status}" != 0 ]]
 	[[ "${output}" == "[fz error]:"*"tmux"* ]]
 }
 
 @test "fz tmux  # empty selection" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export FZF_MOCK_OUTPUT=""
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ -z "${output}" ]]
 }
 
 @test "fz tmux  # enter session inside tmux" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="enter\nsession mySession _ 2w"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export TMUX="/run/tmux/1000/default,12345,0"
-	export FZF_MOCK_OUTPUT="enter\nsession mySession _ 2w"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux switch-client -t mySession" ]]
 }
 
 @test "fz tmux  # enter session outside tmux" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="enter\nsession mySession _ 2w"
 
-	unset TMUX
-	export FZF_MOCK_OUTPUT="enter\nsession mySession _ 2w"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux attach -t mySession" ]]
 }
 
 @test "fz tmux  # enter window inside tmux" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="enter\nwindow mySession:0 bash 1p"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export TMUX="/tmp/tmux-1000/default,12345,0"
-	export FZF_MOCK_OUTPUT="enter\nwindow mySession:0 bash 1p"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux select-window -t mySession:0" ]]
 }
 
 @test "fz tmux  # enter window outside tmux" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="enter\nwindow mySession:0 bash 1p"
 
-	unset TMUX
-	export FZF_MOCK_OUTPUT="enter\nwindow mySession:0 bash 1p"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux attach -t mySession ; select-window -t mySession:0" ]]
 }
 
 @test "fz tmux  # enter pane inside tmux" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="enter\npane mySession:0.1 bash"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export TMUX="/tmp/tmux-1000/default,12345,0"
-	export FZF_MOCK_OUTPUT="enter\npane mySession:0.1 bash"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux select-window -t mySession:0.1 ; select-pane -t mySession:0.1" ]]
 }
 
 @test "fz tmux  # enter pane outside tmux" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="enter\npane mySession:0.1 bash"
 
-	unset TMUX
-	export FZF_MOCK_OUTPUT="enter\npane mySession:0.1 bash"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux attach -t mySession ; select-pane -t mySession:0.1" ]]
 }
 
 @test "fz tmux  # ctrl-k session" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="ctrl-k\nsession mySession _ 2w"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export FZF_MOCK_OUTPUT="ctrl-k\nsession mySession _ 2w"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux kill-session -t mySession" ]]
 }
 
 @test "fz tmux  # ctrl-k window" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="ctrl-k\nwindow mySession:0 bash 1p"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export FZF_MOCK_OUTPUT="ctrl-k\nwindow mySession:0 bash 1p"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux kill-window -t mySession:0" ]]
 }
 
 @test "fz tmux  # ctrl-k pane" {
-	local PATH="${PATH_MOCKS}:${PATH}"
+	FZF_MOCK_OUTPUT="ctrl-k\npane mySession:0.1 bash"
+	TMUX="/run/tmux/1000/default,12345,0"
 
-	export FZF_MOCK_OUTPUT="ctrl-k\npane mySession:0.1 bash"
+	PATH="${PATH_MOCKS}" run bash "${BIN_FZ}" tmux
 
-	run bash "${FZ}" tmux
-
-	[[ "${status}" -eq 0 ]]
+	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-tmux kill-pane -t mySession:0.1" ]]
 }
