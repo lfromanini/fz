@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.4.1"
+readonly VERSION="1.4.2"
 
 function fz::env()
 {
@@ -34,11 +34,14 @@ function fz::kill()
 		local signal="${1}"
 		local pid="${2}"
 		local msg=""
-		local status=0
+		local returnCode=0
 
-		msg=$( builtin kill "${signal}" "${pid}" 2>&1 ) || status="${?}"
-		(( status != 0 )) && printf "kill: %s\n" "${msg#*: kill: }" >&2
-		return "${status}"
+		msg=$( builtin kill "${signal}" "${pid}" 2>&1 ) || {
+			returnCode="${?}"
+			printf "kill: %s\n" "${msg#*: kill: }" >&2
+		}
+
+		return "${returnCode}"
 	}
 
 	local signal="${1:--SIGTERM}"
@@ -78,13 +81,13 @@ function fz::man()
 	binBatcat=$( command -v batcat || command -v bat )
 
 	[[ -n "${binBatcat}" ]] && \
-		fzfPreview+=' | sh -c "col -bx | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
+		fzfPreview+=' | bash -c "col -bx | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
 
 	man -k . 2>/dev/null \
 		| fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="man > " --query="^${*}" --reverse --select-1 \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
 		| xargs -I {} printf "man %s\n" {} \
-		| sh
+		| bash
 }
 
 function fz::ssh()
@@ -122,22 +125,19 @@ command -v tmux &>/dev/null && function fz::tmux()
 	selectedType=$( awk '{ print $1 }' <<< "${selection}" )
 	selectedTarget=$( awk '{ print $2 }' <<< "${selection}" )
 
-	if [[ "${key}" == "enter" ]] ; then
+	case "${key}:${selectedType}" in
+		enter:session)
+			if [[ -n "${TMUX}" ]] ; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
 
-		case "${selectedType}" in
-			session) if [[ -n "${TMUX}" ]] ; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
-			window) if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-window -t "${selectedTarget}" ; fi ;;
-			pane) if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
-		esac
+		enter:window)
+			if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-window -t "${selectedTarget}" ; fi ;;
 
-	elif [[ "${key}" == "ctrl-k" ]] ; then
+		enter:pane)
+			if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 
-		case "${selectedType}" in
-			session) tmux kill-session -t "${selectedTarget}" ;;
-			window) tmux kill-window -t "${selectedTarget}" ;;
-			pane) tmux kill-pane -t "${selectedTarget}" ;;
-		esac
-	fi
+		ctrl-k:session|ctrl-k:window|ctrl-k:pane)
+			tmux kill-"${selectedType}" -t "${selectedTarget}" ;;
+	esac
 }
 
 function __fz::completion::bash()
@@ -154,7 +154,7 @@ function __fz::completion::bash()
 		if [[ ${COMP_CWORD} -eq 1 ]] ; then
 			COMPREPLY=( $( compgen -W "${commands}" -- "${cur}" ) )
 		elif [[ "${prev}" == "kill" ]] ; then
-			local signals="$( kill -l | awk '{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", $i }' )"
+			local signals="$( builtin kill -l | awk '{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", $i }' )"
 			COMPREPLY=( $( compgen -W "${signals}" -- "${cur}" ) )
 		fi
 	}
