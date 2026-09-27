@@ -13,7 +13,7 @@ function teardown() {
 	kill "${TEST_PID}" &>/dev/null || true
 }
 
-@test "fz kill ................ # enter kill with default -SIGTERM" {
+@test "fz kill ................ # [ enter ] kill with default -SIGTERM" {
 
 	FZF_MOCK_OUTPUT=FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
@@ -23,7 +23,7 @@ function teardown() {
 	[[ -z "${output}" ]]
 }
 
-@test "fz kill -SIGKILL ....... # enter kill with custom signal" {
+@test "fz kill -SIGKILL ....... # [ enter ] kill with valid signal" {
 
 	FZF_MOCK_OUTPUT=FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
@@ -33,7 +33,7 @@ function teardown() {
 	[[ -z "${output}" ]]
 }
 
-@test "fz kill -9 ............. # enter kill with custom signal number" {
+@test "fz kill -9 ............. # [ enter ] kill with valid signal number" {
 	FZF_MOCK_OUTPUT=FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill -9
@@ -42,7 +42,7 @@ function teardown() {
 	[[ -z "${output}" ]]
 }
 
-@test "fz kill -NOT_A_SIGNAL .. # enter kill with invalid signal" {
+@test "fz kill -NOT_A_SIGNAL .. # [ enter ] kill with invalid signal" {
 
 	FZF_MOCK_OUTPUT=$'enter\nuser 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
@@ -52,7 +52,17 @@ function teardown() {
 	[[ -z "${output}" ]]
 }
 
-@test "fz kill 9 .............. # enter kill with invalid signal" {
+@test "fz kill --SIGTERM ...... # [ enter ] kill with invalid signal" {
+
+	FZF_MOCK_OUTPUT=$'enter\nuser 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+
+	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill --SIGTERM
+
+	[[ "${status}" == 1 ]]
+	[[ -z "${output}" ]]
+}
+
+@test "fz kill 9 .............. # [ enter ] kill with invalid signal" {
 
 	FZF_MOCK_OUTPUT=$'enter\nuser 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
@@ -62,7 +72,7 @@ function teardown() {
 	[[ -z "${output}" ]]
 }
 
-@test "fz kill ................ # ctrl-k kill with -SIGKILL" {
+@test "fz kill ................ # [ ctrl-k ] kill with -SIGKILL" {
 
 	FZF_MOCK_OUTPUT=$'ctrl-k\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
