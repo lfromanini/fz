@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-printf "mocked-kill %s" "${*}"

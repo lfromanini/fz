@@ -6,6 +6,10 @@ case "${1}" in
 		printf "%s\n" '__fzf_list_hosts() { printf "myServer" ; }'
 	;;
 
+	*-SIGKILL*)
+		printf "Yes"
+	;;
+
 	*)
 		printf "%b" "${FZF_MOCK_OUTPUT}"
 	;;
