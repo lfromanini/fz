@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 
-case "${1}" in
+for arg in "$@" ; do
 
-	--bash)
-		printf "%s\n" '__fzf_list_hosts() { printf "myServer" ; }'
-	;;
+	case "${arg}" in
+		--bash)
+			printf '%s\n' '__fzf_list_hosts() { printf "myServer" ; }'
+			exit 0
+		;;
 
-	*-SIGKILL*)
-		printf "Yes"
-	;;
+		*"Kill"*)
+			printf 'Yes'
+			exit 0
+		;;
+	esac
+done
 
-	*)
-		printf "%b" "${FZF_MOCK_OUTPUT}"
-	;;
-esac
+printf '%b' "${FZF_MOCK_OUTPUT}"

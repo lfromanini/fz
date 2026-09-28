@@ -19,3 +19,12 @@ function teardown() { true ; }
 	[[ "${status}" == 0 ]]
 	[[ "$( stripColors "${output}" )" == "HOME=${HOME}" ]]
 }
+
+@test "fz env ................. # [ esc ] handles fzf cancellation" {
+
+	mockFzfEscape
+	run bash "${PATH_BIN}"/fz env
+
+	[[ "${status}" == 0 ]]
+	[[ -z "${output}" ]]
+}

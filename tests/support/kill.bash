@@ -4,6 +4,6 @@ export TEST_PID="NOT_A_PID"
 
 function spawnTestProcess()
 {
-	sleep 15 &
+	sleep 10 &
 	TEST_PID=$!
 }

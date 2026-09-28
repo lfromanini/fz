@@ -7,6 +7,6 @@ case "${1}" in
 	;;
 
 	*)
-		printf "mocked-tmux %s" "${*}"
+		printf 'mocked-tmux %s' "$*"
 	;;
 esac

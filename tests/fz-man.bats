@@ -17,3 +17,12 @@ function teardown() { true ; }
 	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-man 1 ls" ]]
 }
+
+@test "fz man ................. # [ esc ] handles fzf cancellation" {
+
+	mockFzfEscape
+	run bash "${PATH_BIN}"/fz man
+
+	[[ "${status}" == 0 ]]
+	[[ -z "${output}" ]]
+}

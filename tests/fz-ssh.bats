@@ -17,3 +17,12 @@ function teardown() { true ; }
 	[[ "${status}" == 0 ]]
 	[[ "${output}" == "mocked-ssh myServer" ]]
 }
+
+@test "fz ssh ................. # [ esc ] handles fzf cancellation" {
+
+	mockFzfEscape
+	run bash "${PATH_BIN}"/fz ssh
+
+	[[ "${status}" == 0 ]]
+	[[ -z "${output}" ]]
+}

@@ -30,6 +30,15 @@ function teardown() { true ; }
 	[[ -z "${output}" ]]
 }
 
+@test "fz tmux ................ # [ esc ] handles fzf cancellation" {
+
+	mockFzfEscape
+	run bash "${PATH_BIN}"/fz tmux
+
+	[[ "${status}" == 0 ]]
+	[[ -z "${output}" ]]
+}
+
 @test "fz tmux ................ # [ enter ] session inside tmux" {
 
 	FZF_MOCK_OUTPUT=$'enter\nsession mySession _ 2w'
