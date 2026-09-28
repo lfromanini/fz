@@ -25,11 +25,11 @@ fffffffff            zzzzzzzzzzzzzzzzz
 
 ## Description
 
-**fz** is a simple Bash script to pipe commands to [FZF](https://github.com/junegunn/fzf) so you can benefit from features like previewing and filtering.
+**fz** is a simple Bash script for piping commands to [FZF](https://github.com/junegunn/fzf), allowing you to take advantage of features such as previewing and filtering.
 
 ## Usage
 
-Run `fz` followed by a valid command. Type `fz --help` to see the available commands.
+Run `fz` followed by a valid command. Run `fz --help` to see the available commands.
 
 ## Installation
 
@@ -45,30 +45,30 @@ curl -O https://raw.githubusercontent.com/lfromanini/fz/main/bin/fz
 chmod +x fz
 ```
 
-2. Move it to a place in `${PATH}`:
+2. Move it to a directory in `${PATH}`:
 
-Choose a location from `${PATH}`.
+Choose a directory from `${PATH}`.
 
 ```bash
 # check ${PATH}
-tr ":" "\n" <<< "${PATH}" | sort --unique
+tr ":" "\n" <<< "${PATH}" | sort
 ```
 
-Move the script to the choosen folder, for example:
+Move the script to the chosen directory, for example:
 
 ```bash
 mv fz ~/bin/
 ```
 
-Make sure to use `sudo` if moving to a system folder.
+If you are moving it to a system directory, you may need to use `sudo`.
 
 ```bash
 sudo mv fz /usr/local/bin/
 ```
 
-3. Add completions to `.bashrc` and `.zshrc`
+3. Add shell completions to `.bashrc` and `.zshrc`
 
-Add completion so you can type `fz <TAB><TAB>` or `fz kill <TAB><TAB>` to autocomplete:
+This allows you to use `fz <TAB><TAB>` or `fz kill <TAB><TAB>` to autocomplete commands:
 
 ```bash
 # bash
@@ -84,7 +84,13 @@ Restart your shell for the changes to take effect.
 
 #### Requirements
 
-* [fzf](https://github.com/junegunn/fzf)
+- bash
+- [fzf](https://github.com/junegunn/fzf)
+
+##### Optional Requirements
+
+- [bat](https://github.com/sharkdp/bat) (enables enhanced previews)
+- tmux (enables the `fz tmux` command)
 
 ## LICENSE
 
