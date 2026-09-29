@@ -24,7 +24,7 @@ function teardown() {
 
 @test "fz kill ................ # [ enter ] kill with default -SIGTERM" {
 
-	FZF_MOCK_OUTPUT=FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill
 
@@ -34,7 +34,7 @@ function teardown() {
 
 @test "fz kill -SIGKILL ....... # [ enter ] kill with valid signal" {
 
-	FZF_MOCK_OUTPUT=FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill -SIGKILL
 
@@ -43,7 +43,7 @@ function teardown() {
 }
 
 @test "fz kill -9 ............. # [ enter ] kill with valid signal number" {
-	FZF_MOCK_OUTPUT=FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	FZF_MOCK_OUTPUT=$'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
 
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill -9
 
