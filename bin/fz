@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.4.4"
+readonly VERSION="1.4.5"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -137,13 +137,13 @@ command -v tmux &>/dev/null && function fz::tmux()
 
 	case "${key}:${selectedType}" in
 		enter:session)
-			if [[ -n "${TMUX}" ]] ; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
+			if [[ -n "${TMUX:-}" ]] ; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
 
 		enter:window)
-			if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-window -t "${selectedTarget}" ; fi ;;
+			if [[ -n "${TMUX:-}" ]] ; then tmux select-window -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-window -t "${selectedTarget}" ; fi ;;
 
 		enter:pane)
-			if [[ -n "${TMUX}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
+			if [[ -n "${TMUX:-}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 
 		ctrl-k:session|ctrl-k:window|ctrl-k:pane)
 			__fz::confirm "Kill ?\n\n\tTMUX ${COLOR_CYAN}${selectedType}${COLOR_RESET} ( ${COLOR_CYAN}${selectedTarget}${COLOR_RESET} )" || return 0

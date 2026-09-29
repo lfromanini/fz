@@ -54,6 +54,7 @@ function teardown() { true ; }
 
 	FZF_MOCK_OUTPUT=$'enter\nsession mySession _ 2w'
 
+	unset TMUX
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz tmux
 
 	[[ "${status}" == 0 ]]
@@ -75,6 +76,7 @@ function teardown() { true ; }
 
 	FZF_MOCK_OUTPUT=$'enter\nwindow mySession:0 bash 1p'
 
+	unset TMUX
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz tmux
 
 	[[ "${status}" == 0 ]]
@@ -96,6 +98,7 @@ function teardown() { true ; }
 
 	FZF_MOCK_OUTPUT=$'enter\npane mySession:0.1 bash'
 
+	unset TMUX
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz tmux
 
 	[[ "${status}" == 0 ]]
