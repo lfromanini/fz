@@ -68,3 +68,34 @@ function teardown() { true ; }
 	[[ "${status}" == 1 ]]
 	[[ "${output}" == "[fz error]:"*"unsupportedArgument"* ]]
 }
+
+@test "fz completions ......... # all commands are included" {
+
+	source "${PATH_BIN}"/fz
+
+	local command=""
+	local bashCompletion=""
+	local zshCompletion=""
+
+	bashCompletion=$( bash "${PATH_BIN}"/fz --bash-completion )
+	zshCompletion=$( bash "${PATH_BIN}"/fz --zsh-completion )
+
+	while IFS= read -r command ; do
+		[[ "${bashCompletion}" == *"${command}"* ]]
+		[[ "${zshCompletion}" == *"${command}"* ]]
+	done < <( __fz::commands )
+}
+
+@test "fz --bash-completion ... # valid Bash completion" {
+
+	run bash -c 'source <( "'"${PATH_BIN}"'"/fz --bash-completion ); complete -p fz'
+
+	[[ "${status}" == 0 ]]
+}
+
+@test "fz --zsh-completion .... # valid Zsh completion" {
+
+	run zsh -c 'source <( "'"${PATH_BIN}"'"/fz --zsh-completion ); whence -f _fz'
+
+	[[ "${status}" == 0 ]]
+}

@@ -5,23 +5,26 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.4.5"
+readonly VERSION="1.5.0"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
-readonly COLOR_DIM=$'\033[2m'
 readonly COLOR_RESET=$'\033[0m'
 
 function fz::env()
 {
 	local var=""
+	local vars=""
 
-	var=$( env | sort | awk -F= '{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "\033[1;36m%s\033[0m\033[35m=\033[0m%s\n", $1, value }' \
-		| __fz::fzf --ansi --prompt="env > " --reverse --select-1 \
+	vars=$( env | sort \
+		| awk -F= -v c1="${COLOR_CYAN}" -v c2="${COLOR_MAGENTA}" -v cr="${COLOR_RESET}" '{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "%s%s%s=%s%s\n", c1, $1, c2, cr, value }' \
+		| __fz::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 \
 		| cut -d= -f1 \
 	)
 
-	[[ -z "${var}" ]] || printf "${COLOR_CYAN}%s${COLOR_MAGENTA}=${COLOR_RESET}${COLOR_DIM}%q${COLOR_RESET}\n" "${var}" "${!var}"
+	while IFS= read -r var ; do
+		[[ -z "${var}" ]] || printf "${COLOR_CYAN}%s${COLOR_MAGENTA}=${COLOR_RESET}%q\n" "${var}" "${!var}"
+	done <<< "${vars}"
 }
 
 function fz::kill()
@@ -55,11 +58,11 @@ function fz::kill()
 	local pid=""
 
 	__fz::kill::isSignal "${signal}" || return $?
-	signal="${signal^^}"                            # uppercase
+	signal=$( printf '%s' "${signal}" | tr '[:lower:]' '[:upper:]' )
 	[[ "${signal}" == -* ]] || signal="-${signal}"  # make it "-SIGNAL"
 
 	selection=$( ps aux \
-		| __fz::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... kill '"${signal}"$'\n[ Ctrl + k ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac
+		| __fz::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac
 	)
 
 	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
@@ -105,13 +108,23 @@ function fz::ssh()
 	local fzfPreview="ssh -G -T {} 2>/dev/null | grep -E '^(host|user|hostname|port|identityfile)[[:space:]]' | column -t"
 	local sshServer=""
 
+	local arg=""
+	local sshArgs=( )
+	local remoteCommand=( )
+	local isRemoteCommand=false
+
+	for arg in "$@" ; do
+		[[ "${arg}" == "--" ]] && isRemoteCommand=true && continue
+		[[ "${isRemoteCommand}" == true ]] && remoteCommand+=( "${arg}" ) || sshArgs+=( "${arg}" )
+	done
+
 	sshServer=$( bash --noprofile --norc -ic '
 		source <( __fz::fzf --bash )
 		__fzf_list_hosts | __fz::fzf --height="30%" --preview="'"${fzfPreview}"'" --prompt="ssh > " --reverse --select-1
 	' )
 
 	# shellcheck disable=SC2029                     # SC2029: Note that, unescaped, this expands on the client side.
-	[[ -z "${sshServer}" ]] || ssh "${@}" "${sshServer}"
+	[[ -z "${sshServer}" ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
 }
 
 command -v tmux &>/dev/null && function fz::tmux()
@@ -127,7 +140,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
 		| column -t \
-		| __fz::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ Ctrl + k ] .. kill\n\n' --prompt="tmux > " --reverse --select-1 --tmux
+		| __fz::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="tmux > " --query="$*" --reverse --select-1 --tmux
 	)
 
 	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
@@ -155,22 +168,26 @@ command -v tmux &>/dev/null && function fz::tmux()
 	esac
 }
 
+function __fz::commands() { compgen -A function "fz::" | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
+
 function __fz::completion::bash()
 {
-	cat <<- 'HEREDOC'
+	local commandList=""
+
+	commandList=$( __fz::commands )
+	commandList=${commandList//$'\n'/ }
+
+	cat <<- HEREDOC
 	_fz_completion() {
-		local cur="${COMP_WORDS[COMP_CWORD]}"
-		local prev="${COMP_WORDS[COMP_CWORD-1]}"
+		local cur="\${COMP_WORDS[COMP_CWORD]}"
+		local prev="\${COMP_WORDS[COMP_CWORD-1]}"
+		local commands="-h --help -V --version ${commandList}"
 
-		local commands="-h --help -V --version"
-
-		commands+="$( fz --help | awk '/^Commands:/{ f = 1 ; next }/^Options:/{ f = 0 } f && NF { printf " %s", $1 }' )"
-
-		if [[ ${COMP_CWORD} -eq 1 ]] ; then
-			COMPREPLY=( $( compgen -W "${commands}" -- "${cur}" ) )
-		elif [[ "${prev}" == "kill" ]] ; then
-			local signals="$( builtin kill -l | awk '{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", $i }' )"
-			COMPREPLY=( $( compgen -W "${signals}" -- "${cur}" ) )
+		if [[ \${COMP_CWORD} -eq 1 ]] ; then
+			COMPREPLY=( \$( compgen -W "\${commands}" -- "\${cur}" ) )
+		elif [[ "\${prev}" == "kill" ]] ; then
+			local signals="\$( builtin kill -l | awk '{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", \$i }' )"
+			COMPREPLY=( \$( compgen -W "\${signals}" -- "\${cur}" ) )
 		fi
 	}
 
@@ -180,7 +197,11 @@ function __fz::completion::bash()
 
 function __fz::completion::zsh()
 {
-	cat <<- 'HEREDOC'
+	local commandList=""
+
+	commandList=$( __fz::commands )
+
+	cat <<- HEREDOC
 	#compdef fz
 
 	_fz() {
@@ -188,13 +209,15 @@ function __fz::completion::zsh()
 		local cmd=""
 
 		while IFS= read -r cmd ; do
-			commands+=( "${cmd}:Run fz ${cmd}" )
-		done < <( fz --help | awk '/^Commands:/{ f = 1 ; next }/^Options:/{ f = 0 } f && NF { print $1 }' )
+			commands+=( "\${cmd}:Run fz \${cmd}" )
+		done <<- COMMANDS
+	${commandList}
+	COMMANDS
 
 		if (( CURRENT == 2 )) ; then
 			_describe 'command' commands
-		elif [[ "${words[2]}" == "kill" ]] ; then
-			local -a signals=( $( bash -c 'builtin kill -l | awk '\''{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", $i }'\''' ) )
+		elif [[ "\${words[2]}" == "kill" ]] ; then
+			local -a signals=( \$( bash -c 'builtin kill -l | awk '\''{ for( i = 2 ; i <= NF ; i += 2 ) printf "%s ", \$i }'\''' ) )
 			_describe 'signal' signals
 		fi
 	}
@@ -219,23 +242,92 @@ function __fz::fzf() { fzf "$@" || (( $? == 130 )) ; }
 
 function __fz::help()
 {
+	local helpFunction=""
+
 	__fz::version
 
 	cat <<- HEREDOC
 
 	Pipe commands to FZF.
 
-	Usage: ${APP_NAME} [COMMAND] [arguments for COMMAND]
+	Usage: ${APP_NAME} [COMMAND] [ARGUMENTS]
 	       ${APP_NAME} [OPTION]
 
 	Commands:
 
-	$( compgen -A function "fz::" | awk '{ sub( /^fz::/, "    " ) ; print }' )
+	$( __fz::commands | awk '{ print "    " $0 }' )
+
+	Command arguments:
+	HEREDOC
+
+	while IFS= read -r helpFunction ; do
+		printf '\n'
+		"${helpFunction}"
+	done < <( compgen -A function "__fz::help::" | sort )
+
+	cat <<- HEREDOC
 
 	Options:
 
 	    -h, --help                display this help
 	    -V, --version             output version information
+	HEREDOC
+}
+
+function __fz::help::env()
+{
+	cat <<- HEREDOC
+	    env [QUERY]
+	        Filter environment variables.
+	        Press <CTRL> + <A> or <CTRL> + <SPACE> to select all filtered results.
+
+	        Example: ${APP_NAME} env PATH
+	HEREDOC
+}
+
+function __fz::help::kill()
+{
+	cat <<- HEREDOC
+	    kill [SIGNAL]
+	        Signal defaults to -SIGTERM; <CTRL> + <K> uses -SIGKILL.
+
+	        Examples:
+	            ${APP_NAME} kill
+	            ${APP_NAME} kill -9
+	HEREDOC
+}
+
+function __fz::help::man()
+{
+	cat <<- HEREDOC
+	    man [QUERY]
+	        Filter manual pages.
+
+	        Example: ${APP_NAME} man su
+	HEREDOC
+}
+
+function __fz::help::ssh()
+{
+	cat <<- HEREDOC
+	    ssh [SSH_OPTIONS] [-- COMMAND [ARGUMENTS...]]
+	        Arguments before -- are passed to ssh.
+	        Arguments after it are executed on the selected host.
+
+	        Examples:
+	            ${APP_NAME} ssh -p 2222
+	            ${APP_NAME} ssh -p 2222 -- hostname -A
+	HEREDOC
+}
+
+command -v tmux &>/dev/null && function __fz::help::tmux()
+{
+	cat <<- HEREDOC
+	    tmux [QUERY]
+	        Browse tmux sessions, windows and panes.
+	        Enter attaches or switches to the selection; <CTRL> + <K> kills it.
+
+	        Example: ${APP_NAME} tmux mySession
 	HEREDOC
 }
 

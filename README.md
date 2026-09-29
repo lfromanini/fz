@@ -1,4 +1,4 @@
-<img align="right" src="https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg">
+<img align="right" src="https://cdn.jsdelivr.net/gh/sindresorhus/awesome@main/media/badge.svg">
 
 # fz
 
@@ -29,7 +29,57 @@ fffffffff            zzzzzzzzzzzzzzzzz
 
 ## Usage
 
-Run `fz` followed by a valid command. Run `fz --help` to see the available commands.
+Run `fz` followed by a valid command. Run `fz --help` for a complete list of commands and options.
+
+### Commands
+
+#### env [QUERY]
+
+Browse environment variables and their values. Press `<CTRL> + <A>` or `<CTRL> + <SPACE>` to select all filtered results.
+
+```bash
+fz env
+fz env PATH
+```
+
+#### kill [SIGNAL]
+
+Browse running processes and send a signal. Defaults to SIGTERM; `<CTRL> + <K>` sends SIGKILL.
+
+```bash
+fz kill
+fz kill -9
+```
+
+#### man [QUERY]
+
+Browse installed manual pages with previews.
+
+```bash
+fz man
+fz man su
+```
+
+#### ssh [SSH_OPTIONS] [-- COMMAND [ARGUMENTS...]]
+
+Browse SSH hosts and connect to the selected host. Arguments before -- are passed to ssh; arguments after -- are executed on the selected host.
+
+```bash
+fz ssh
+fz ssh -p 2222
+fz ssh -p 2222 -- hostname -A
+```
+
+#### tmux [QUERY]
+
+Browse tmux sessions, windows and panes. Press `<ENTER>` to attach or switch to the selection; press `<CTRL> + <K>` to kill it.
+
+**Requires tmux.**
+
+```bash
+fz tmux
+fz tmux mySession
+```
 
 ## Installation
 
@@ -78,9 +128,21 @@ echo 'source <( fz --bash-completion )' >> ~/.bashrc
 echo 'source <( fz --zsh-completion )' >> ~/.zshrc
 ```
 
-Restart your shell for the changes to take effect.
+Reload your shell configuration for the changes to take effect:
+
+```bash
+# bash
+source ~/.bashrc
+
+# zsh
+source ~/.zshrc
+```
 
 4. Done!
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, testing and contribution conventions.
 
 #### Requirements
 
