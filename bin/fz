@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.4.3"
+readonly VERSION="1.4.4"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -87,7 +87,7 @@ function fz::man()
 	local fzfPreview='awk '\''{ gsub( /[ (),]/, " " ) ; print $2, $1 }'\'' <<< {} | xargs man'
 	local binBatcat=""
 
-	binBatcat=$( command -v batcat || command -v bat )
+	binBatcat=$( command -v batcat || command -v bat || : )
 
 	[[ -n "${binBatcat}" ]] && fzfPreview+=' | bash -c "col -bx | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
 
