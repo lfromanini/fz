@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.6.0"
+readonly VERSION="1.6.1"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -13,14 +13,16 @@ readonly COLOR_RESET=$'\033[0m'
 
 function fz::env()
 {
+	local input=""
 	local var=""
 	local vars=""
 
-	vars=$( env | sort \
-		| awk -F= -v c1="${COLOR_CYAN}" -v c2="${COLOR_MAGENTA}" -v cr="${COLOR_RESET}" '{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "%s%s%s=%s%s\n", c1, $1, c2, cr, value }' \
-		| __fz::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 \
-		| cut -d= -f1 \
+	input=$(
+		env | sort | awk -F= -v c1="${COLOR_CYAN}" -v c2="${COLOR_MAGENTA}" -v cr="${COLOR_RESET}" \
+			'{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "%s%s%s=%s%s\n", c1, $1, c2, cr, value }'
 	)
+
+	vars=$( __fz::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
 
 	while IFS= read -r var ; do
 		[[ -z "${var}" ]] || printf "${COLOR_CYAN}%s${COLOR_MAGENTA}=${COLOR_RESET}%q\n" "${var}" "${!var}"
@@ -41,6 +43,7 @@ function __fz::env::help()
 function fz::kill()
 {
 	local signal="${1:--SIGTERM}"
+	local procs=""
 	local selection=""
 	local key=""
 	local pid=""
@@ -49,8 +52,10 @@ function fz::kill()
 	signal=$( printf '%s' "${signal}" | tr '[:lower:]' '[:upper:]' )
 	[[ "${signal}" == -* ]] || signal="-${signal}"  # make it "-SIGNAL"
 
-	selection=$( ps aux \
-		| __fz::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac
+	procs=$( ps aux )
+
+	selection=$(
+		__fz::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "${procs}"
 	)
 
 	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
@@ -119,8 +124,7 @@ function fz::man()
 
 	[[ -n "${binBatcat}" ]] && fzfPreview+=' | bash -c "col -bx | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
 
-	man -k . 2>/dev/null \
-		| __fz::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="man > " --query="^$*" --reverse --select-1 \
+	__fz::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="man > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
 		| xargs -I {} printf 'man %s\n' {} \
 		| bash
