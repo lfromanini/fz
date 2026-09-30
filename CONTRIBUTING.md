@@ -11,8 +11,7 @@ Contributions are welcome. Please follow the conventions below when adding or mo
 - `fz::*` functions are public commands. Every `fz::*` function must correspond to a command that can be invoked as `fz <command>`.
 - Public commands are automatically discovered by `__fz::commands`. They are therefore automatically included in `--help` and shell completions.
 - `__fz::*` functions are private support functions and are not exposed as commands.
-- If a private function is only used by a single command, define it inside that command's function. Follow the existing pattern in `fz::kill`.
-- Add a `__fz::help::*` function for every `fz::*` command. Help functions are automatically discovered and included in `--help`.
+- Add a `__fz::<command>::help` function for every `fz::<command>` command. Help functions are automatically discovered and included in `--help`.
 - Keep `fz::*` command functions in alphabetical order.
 - Keep `__fz::*` support functions in alphabetical order within their respective sections.
 
@@ -30,13 +29,42 @@ For example, the `tmux` command is defined only when `tmux` is installed:
 
 ```bash
 command -v tmux &>/dev/null && function fz::tmux()
+{
+	...
+}
+
+command -v tmux &>/dev/null && function fz::tmux::help()
+{
+	...
+}
 ```
 
 Optional commands must be tested both when their dependency is installed and when it is unavailable.
 
 ### Completions
 
-When adding or removing commands, make sure both Bash and Zsh completions continue to work. Command lists are generated automatically; do not duplicate command names manually in completion definitions.
+When adding or removing commands, make sure both Bash and Zsh completions continue to work.
+
+The top-level command list is generated automatically from the available public `fz::*` functions. Do not duplicate command names manually in completion definitions.
+
+Commands may also provide their own completions for arguments and subcommands by defining a completion function in their private namespace:
+
+```bash
+function __fz::kill::completion()
+{
+	...
+}
+```
+
+The completion function is associated with the corresponding command by its name:
+
+```text
+fz::kill
+    |
+    +-- __fz::kill::completion
+```
+
+This allows commands to provide argument or subcommand completions without requiring changes to the global completion implementation.
 
 ### Help
 

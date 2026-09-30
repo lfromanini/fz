@@ -62,7 +62,7 @@ fz man su
 
 #### ssh [SSH_OPTIONS] [-- COMMAND [ARGUMENTS...]]
 
-Browse SSH hosts and connect to the selected host. Arguments before -- are passed to ssh; arguments after -- are executed on the selected host.
+Browse SSH hosts and connect to the selected host. Arguments before `--` are passed to ssh; arguments after `--` are executed on the selected host.
 
 ```bash
 fz ssh
@@ -107,7 +107,7 @@ tr ":" "\n" <<< "${PATH}" | sort
 Move the script to the chosen directory, for example:
 
 ```bash
-mv fz ~/bin/
+mv fz ~/.local/bin/
 ```
 
 If you are moving it to a system directory, you may need to use `sudo`.
