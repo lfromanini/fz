@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.6.1"
+readonly VERSION="1.6.2"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -333,14 +333,12 @@ function __fz::help()
 	$( __fz::commands | awk '{ print "    " $0 }' )
 
 	Command arguments:
-	HEREDOC
-
-	while IFS= read -r command ; do
-		helpFunction="__fz::${command}::help"
-		declare -F "${helpFunction}" &>/dev/null && printf '\n' && "${helpFunction}"
-	done < <( __fz::commands )
-
-	cat <<- HEREDOC
+	$(
+		while IFS= read -r command ; do
+			helpFunction="__fz::${command}::help"
+			declare -F "${helpFunction}" &>/dev/null && printf '\n' && "${helpFunction}"
+		done < <( __fz::commands )
+	)
 
 	Options:
 
