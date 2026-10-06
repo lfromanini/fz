@@ -2,6 +2,13 @@
 
 # fz
 
+[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Shell](https://img.shields.io/badge/shell-bash-orange?logo=gnu-bash&logoColor=white)]()
+[![Latest Tag](https://img.shields.io/github/v/tag/lfromanini/fz)](https://github.com/lfromanini/fz/tags)
+[![GitHub Stars](https://img.shields.io/github/stars/lfromanini/fz?style=social)](https://github.com/lfromanini/fz/stargazers)
+[![Dependencies](https://img.shields.io/badge/dependencies-bash%7Cfzf-lightgrey)](https://github.com/lfromanini/fz#requirements)
+[![CI](https://github.com/lfromanini/fz/actions/workflows/ci.yaml/badge.svg)](https://github.com/lfromanini/fz/actions/workflows/ci.yaml)
+
 fz - Pipe commands to FZF
 
 ```
