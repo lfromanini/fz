@@ -30,7 +30,7 @@ jobs:
       - name: Install BATS
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats
+          sudo apt-get install -y bats fzf zsh
 
       - name: Run BATS tests
         run: |
