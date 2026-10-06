@@ -34,4 +34,4 @@ jobs:
 
       - name: Run BATS tests
         run: |
-          bats tests/
+          bats --verbose-run tests/
