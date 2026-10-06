@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.6.2"
+readonly VERSION="1.6.3"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -160,7 +160,7 @@ function fz::ssh()
 	sshServer=$( bash --noprofile --norc -ic '
 		source <( __fz::fzf --bash )
 		__fzf_list_hosts | __fz::fzf --height="30%" --preview="'"${fzfPreview}"'" --prompt="ssh > " --reverse --select-1
-	' )
+	' 2>/dev/null )
 
 	# shellcheck disable=SC2029                     # SC2029: Note that, unescaped, this expands on the client side.
 	[[ -z "${sshServer}" ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
