@@ -32,8 +32,10 @@ function teardown() { true ; }
 
 @test "fz tmux ................ # [ esc ] handles fzf cancellation" {
 
+	TMUX="/run/tmux/1000/default,12345,0"
+
 	mockFzfEscape
-	run bash "${PATH_BIN}"/fz tmux
+	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz tmux
 
 	[[ "${status}" == 0 ]]
 	[[ -z "${output}" ]]
