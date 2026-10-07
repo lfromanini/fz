@@ -1,5 +1,3 @@
-<img align="right" src="https://cdn.jsdelivr.net/gh/sindresorhus/awesome@main/media/badge.svg">
-
 # fz
 
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
