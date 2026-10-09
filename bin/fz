@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.6.4"
+readonly VERSION="1.6.5"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -49,7 +49,7 @@ function fz::kill()
 	local pid=""
 
 	__fz::kill::isSignal "${signal}" || return $?
-	signal=$( printf '%s' "${signal}" | tr '[:lower:]' '[:upper:]' )
+	signal=$( tr '[:lower:]' '[:upper:]' <<< "${signal}" )
 	[[ "${signal}" == -* ]] || signal="-${signal}"  # make it "-SIGNAL"
 
 	procs=$( ps aux )
@@ -70,7 +70,7 @@ function fz::kill()
 			signal="-SIGKILL"
 		;;
 
-		"")
+		*)
 			return 0 ;;                             # fzf cancelled
 	esac
 
@@ -250,9 +250,6 @@ command -v tmux &>/dev/null && function fz::tmux()
 			__fz::confirm "Kill ?\n\n\tTMUX ${COLOR_CYAN}${selectedType}${COLOR_RESET} ( ${COLOR_CYAN}${selectedTarget}${COLOR_RESET} )" || return 0
 			tmux kill-"${selectedType}" -t "${selectedTarget}"
 		;;
-
-		:)
-			return 0 ;;                             # fzf cancelled
 	esac
 }
 
@@ -422,6 +419,6 @@ function __fz::main()
 	return $?
 }
 
-function __fz::version() { printf '%s\n' "${APP_NAME} ${VERSION}" ; }
+function __fz::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
 
 __fz::main "$@"
