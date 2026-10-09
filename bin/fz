@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.6.3"
+readonly VERSION="1.6.4"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -144,7 +144,43 @@ function fz::ssh()
 {
 	export -f __fz::fzf
 
-	local fzfPreview="ssh -G -T {} 2>/dev/null | grep -E '^(host|user|hostname|port|identityfile)[[:space:]]' | column -t"
+	local fzfFilter=""
+
+	IFS= read -r -d '' fzfFilter <<- 'AWK' || :     # use a heredoc to improve readability when building the awk preview command
+	awk 'BEGIN {
+		names[\"host\"] = \"Host\"                  # convert directive names to PascalCase
+		names[\"user\"] = \"User\"
+		names[\"hostname\"] = \"HostName\"
+		names[\"port\"] = \"Port\"
+		names[\"forwardx11\"] = \"ForwardX11\"
+		names[\"permitlocalcommand\"] = \"PermitLocalCommand\"
+		names[\"requesttty\"] = \"RequestTTY\"
+		names[\"stricthostkeychecking\"] = \"StrictHostKeyChecking\"
+		names[\"serveraliveinterval\"] = \"ServerAliveInterval\"
+		names[\"localcommand\"] = \"LocalCommand\"
+		names[\"remotecommand\"] = \"RemoteCommand\"
+		names[\"identityfile\"] = \"IdentityFile\"
+		names[\"globalknownhostsfile\"] = \"GlobalKnownHostsFile\"
+		names[\"userknownhostsfile\"] = \"UserKnownHostsFile\"
+		names[\"forwardagent\"] = \"ForwardAgent\"
+		names[\"connecttimeout\"] = \"ConnectTimeout\"
+		names[\"proxycommand\"] = \"ProxyCommand\"
+		names[\"proxyjump\"] = \"ProxyJump\"
+
+		for( name in names )                        # dynamically build the lookup pattern from the names array
+			pattern = pattern ( pattern ? \"|\" : \"\" ) name
+
+		pattern = \"^(\" pattern \")[[:space:]]\"   # ^(host|user|hostname|port|...)[[:space:]]
+	}
+	\$0 ~ pattern {
+		key = names[\$1]
+		value = \$0
+		sub( /^[^[:space:]]+[[:space:]]+/, \"\", value )
+		printf \"%-22s%s\n\", key, value
+	}'
+	AWK
+
+	local fzfPreview="ssh -G {} 2>/dev/null | ${fzfFilter}"
 	local sshServer=""
 
 	local arg=""
@@ -159,7 +195,7 @@ function fz::ssh()
 
 	sshServer=$( bash --noprofile --norc -ic '
 		source <( __fz::fzf --bash )
-		__fzf_list_hosts | __fz::fzf --height="30%" --preview="'"${fzfPreview}"'" --prompt="ssh > " --reverse --select-1
+		__fzf_list_hosts | __fz::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="ssh > " --reverse --select-1
 	' 2>/dev/null )
 
 	# shellcheck disable=SC2029                     # SC2029: Note that, unescaped, this expands on the client side.
