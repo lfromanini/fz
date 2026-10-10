@@ -93,7 +93,7 @@ Tests are written using [Bats-core: Bash Automated Testing System](https://githu
 Run the test suite before submitting a change:
 
 ```bash
-bats tests/
+bats --verbose-run tests/
 ```
 
 When adding or modifying a command, add or update the corresponding tests. Test cancellation (`ESC`), error cases and optional dependencies where applicable.
