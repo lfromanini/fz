@@ -33,7 +33,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 	...
 }
 
-command -v tmux &>/dev/null && function fz::tmux::help()
+command -v tmux &>/dev/null && function __fz::tmux::help()
 {
 	...
 }
