@@ -57,7 +57,7 @@ function teardown() { true ; }
 	set +o errexit
 	PATH="" run -127 bash "${PATH_BIN}"/fz
 
-	[[ "${status}" == 1 ]]
+	[[ "${status}" == 127 ]]
 	[[ "${output}" == "[fz error]:"* ]]
 }
 
@@ -67,6 +67,24 @@ function teardown() { true ; }
 
 	[[ "${status}" == 1 ]]
 	[[ "${output}" == "[fz error]:"*"unsupportedArgument"* ]]
+}
+
+@test "fz _fz::completion kill  # valid non-public (internal) function call" {
+
+	run bash "${PATH_BIN}"/fz _fz::completion kill
+
+	[[ "${status}" == 0 ]]
+	[[ "${output}" == "SIG"* ]]
+}
+
+@test "fz _fz::unknownFunction  # unknown non-public (internal) function call" {
+
+	bats_require_minimum_version 1.5.0
+	set +o errexit
+	run bash -127 "${PATH_BIN}"/fz _fz::unknownFunction
+
+	[[ "${status}" == 127 ]]
+	[[ "${output}" == *"_fz::unknownFunction: command not found" ]]
 }
 
 @test "fz completions ......... # all commands are included" {
@@ -86,14 +104,14 @@ function teardown() { true ; }
 	done < <( __fz::commands )
 }
 
-@test "fz --bash-completion ... # valid Bash completion" {
+@test "fz --bash-completion ... # valid bash completion" {
 
 	run bash -c 'source <( "'"${PATH_BIN}"'"/fz --bash-completion ) ; complete -p fz'
 
 	[[ "${status}" == 0 ]]
 }
 
-@test "fz --zsh-completion .... # valid Zsh completion" {
+@test "fz --zsh-completion .... # valid zsh completion" {
 
 	run zsh -c 'source <( "'"${PATH_BIN}"'"/fz --zsh-completion ) ; whence -f _fz'
 
