@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.6.5"
+readonly VERSION="1.7.0"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -266,7 +266,7 @@ command -v tmux &>/dev/null && function __fz::tmux::help()
 
 function __fz::commands() { compgen -A function "fz::" | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
 
-function __fz::completion()
+function _fz::completion()
 {
 	local command="${1:-}"
 
@@ -292,7 +292,7 @@ function __fz::completion::bash()
 		if [[ \${COMP_CWORD} -eq 1 ]] ; then
 			COMPREPLY=( \$( compgen -W "\${commands}" -- "\${cur}" ) )
 		else
-			local completions="\$( fz --completion="\${command}" )"
+			local completions="\$( fz _fz::completion "\${command}" )"
 			COMPREPLY=( \$( compgen -W "\${completions}" -- "\${cur}" ) )
 		fi
 	}
@@ -325,7 +325,7 @@ function __fz::completion::zsh()
 		fi
 
 		local command="\${words[2]}"
-		local -a completions=( \$( fz --completion="\${command}" ) )
+		local -a completions=( \$( fz _fz::completion "\${command}" ) )
 		_describe 'completion' completions
 	}
 
@@ -391,19 +391,22 @@ function __fz::main()
 		--zsh-completion)
 			__fz::completion::zsh ;;
 
-		--completion=*)
-			__fz::completion "${arg#--completion=}" ;;
-
 		-h|--help)
 			__fz::help ;;
 
 		-V|--version)
 			__fz::version ;;
 
+		_fz::*)
+			# non-public (internal) functions
+			shift
+			"${arg}" "$@"
+		;;
+
 		*)
 			command -v fzf &>/dev/null || {
 				printf '%s\n' "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
-				return 1
+				return 127
 			}
 
 			declare -F "fz::${arg}" &>/dev/null || {
