@@ -88,14 +88,14 @@ function teardown() { true ; }
 
 @test "fz --bash-completion ... # valid Bash completion" {
 
-	run bash -c 'source <( "'"${PATH_BIN}"'"/fz --bash-completion ); complete -p fz'
+	run bash -c 'source <( "'"${PATH_BIN}"'"/fz --bash-completion ) ; complete -p fz'
 
 	[[ "${status}" == 0 ]]
 }
 
 @test "fz --zsh-completion .... # valid Zsh completion" {
 
-	run zsh -c 'source <( "'"${PATH_BIN}"'"/fz --zsh-completion ); whence -f _fz'
+	run zsh -c 'source <( "'"${PATH_BIN}"'"/fz --zsh-completion ) ; whence -f _fz'
 
 	[[ "${status}" == 0 ]]
 }
