@@ -5,31 +5,37 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.7.0"
+readonly VERSION="1.8.0"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
 readonly COLOR_RESET=$'\033[0m'
 
+
+### commands
+##################
+
+### env
+
 function fz::env()
 {
-	local input=""
-	local var=""
-	local vars=""
+	local input=
+	local selection=""
+	local var=
 
 	input=$(
 		env | sort | awk -F= -v c1="${COLOR_CYAN}" -v c2="${COLOR_MAGENTA}" -v cr="${COLOR_RESET}" \
 			'{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "%s%s%s=%s%s\n", c1, $1, c2, cr, value }'
 	)
 
-	vars=$( __fz::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
+	selection=$( __fz:api::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
 
 	while IFS= read -r var ; do
 		[[ -z "${var}" ]] || printf "${COLOR_CYAN}%s${COLOR_MAGENTA}=${COLOR_RESET}%q\n" "${var}" "${!var}"
-	done <<< "${vars}"
+	done <<< "${selection}"
 }
 
-function __fz::env::help()
+function __fz::env::fz::help()
 {
 	cat <<- HEREDOC
 	    env [QUERY]
@@ -40,13 +46,15 @@ function __fz::env::help()
 	HEREDOC
 }
 
+### kill
+
 function fz::kill()
 {
-	local signal="${1:--SIGTERM}"
-	local procs=""
-	local selection=""
-	local key=""
-	local pid=""
+	local signal=${1:-"-SIGTERM"}
+	local procs=
+	local selection=
+	local key=
+	local pid=
 
 	__fz::kill::isSignal "${signal}" || return $?
 	signal=$( tr '[:lower:]' '[:upper:]' <<< "${signal}" )
@@ -55,7 +63,7 @@ function fz::kill()
 	procs=$( ps aux )
 
 	selection=$(
-		__fz::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "${procs}"
+		__fz:api::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "${procs}"
 	)
 
 	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
@@ -66,7 +74,7 @@ function fz::kill()
 		enter) ;;
 
 		ctrl-k)
-			__fz::confirm "Kill ?\n\n\tSIGKILL ( ${COLOR_CYAN}${selection}${COLOR_RESET} )" || return 0
+			__fz:api::confirm "Kill ?\n\n\tSIGKILL ( ${COLOR_CYAN}${selection}${COLOR_RESET} )" || return 0
 			signal="-SIGKILL"
 		;;
 
@@ -77,9 +85,9 @@ function fz::kill()
 	__fz::kill::kill "${signal}" "${pid}"
 }
 
-function __fz::kill::completion() {	bash -c "builtin kill -l | awk '{ for ( i = 2 ; i <= NF ; i += 2 ) print \$i }'" ; }
+function __fz::kill::fz::completion() {	bash -c "builtin kill -l | awk '{ for ( i = 2 ; i <= NF ; i += 2 ) print \$i }'" ; }
 
-function __fz::kill::help()
+function __fz::kill::fz::help()
 {
 	cat <<- HEREDOC
 	    kill [SIGNAL]
@@ -93,7 +101,7 @@ function __fz::kill::help()
 
 function __fz::kill::isSignal()
 {
-	local signal="${1}"
+	local signal=$1
 
 	[[ "${signal}" == --* || "${signal}" == [0-9]* ]] && return 1
 	builtin kill -l "${signal#-}" &>/dev/null
@@ -101,10 +109,10 @@ function __fz::kill::isSignal()
 
 function __fz::kill::kill()
 {
-	local signal="${1}"
-	local pid="${2}"
-	local msg=""
+	local signal=$1
+	local pid=$2
 	local returnCode=0
+	local msg=
 
 	msg=$( builtin kill "${signal}" "${pid}" 2>&1 ) || {
 		returnCode=$?
@@ -114,23 +122,25 @@ function __fz::kill::kill()
 	return ${returnCode}
 }
 
+### man
+
 function fz::man()
 {
 	# shellcheck disable=SC2016                     # SC2016: Expressions don't expand in single quotes, use double quotes for that.
 	local fzfPreview='awk '\''{ gsub( /[ (),]/, " " ) ; print $2, $1 }'\'' <<< {} | xargs man'
-	local binBatcat=""
+	local binBatcat=
 
-	binBatcat=$( command -v batcat || command -v bat || : )
+	binBatcat=$( __fz:api::command batcat bat )
 
 	[[ -n "${binBatcat}" ]] && fzfPreview+=' | bash -c "col -bx | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
 
-	__fz::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="man > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
+	__fz:api::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="man > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
 		| xargs -I {} printf 'man %s\n' {} \
 		| bash
 }
 
-function __fz::man::help()
+function __fz::man::fz::help()
 {
 	cat <<- HEREDOC
 	    man [QUERY]
@@ -140,11 +150,13 @@ function __fz::man::help()
 	HEREDOC
 }
 
+### ssh
+
 function fz::ssh()
 {
-	export -f __fz::fzf
+	export -f __fz:api::fzf
 
-	local fzfFilter=""
+	local fzfFilter=
 
 	IFS= read -r -d '' fzfFilter <<- 'AWK' || :     # use a heredoc to improve readability when building the awk preview command
 	awk 'BEGIN {
@@ -181,9 +193,9 @@ function fz::ssh()
 	AWK
 
 	local fzfPreview="ssh -G {} 2>/dev/null | ${fzfFilter}"
-	local sshServer=""
+	local sshServer=
 
-	local arg=""
+	local arg=
 	local sshArgs=( )
 	local remoteCommand=( )
 	local isRemoteCommand=false
@@ -194,15 +206,15 @@ function fz::ssh()
 	done
 
 	sshServer=$( bash --noprofile --norc -ic '
-		source <( __fz::fzf --bash )
-		__fzf_list_hosts | __fz::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="ssh > " --reverse --select-1
+		source <( __fz:api::fzf --bash )
+		__fzf_list_hosts | __fz:api::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="ssh > " --reverse --select-1
 	' 2>/dev/null )
 
 	# shellcheck disable=SC2029                     # SC2029: Note that, unescaped, this expands on the client side.
 	[[ -z "${sshServer}" ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
 }
 
-function __fz::ssh::help()
+function __fz::ssh::fz::help()
 {
 	cat <<- HEREDOC
 	    ssh [SSH_OPTIONS] [-- COMMAND [ARGUMENTS...]]
@@ -215,12 +227,14 @@ function __fz::ssh::help()
 	HEREDOC
 }
 
+### tmux
+
 command -v tmux &>/dev/null && function fz::tmux()
 {
-	local selection=""
-	local key=""
-	local selectedType=""
-	local selectedTarget=""
+	local selection=
+	local key=
+	local selectedType=
+	local selectedTarget=
 
 	selection=$( {
 			tmux list-sessions -F "session #S _ #{session_windows}w"
@@ -228,7 +242,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
 		| column -t \
-		| __fz::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="tmux > " --query="$*" --reverse --select-1 --tmux
+		| __fz:api::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="tmux > " --query="$*" --reverse --select-1 --tmux
 	)
 
 	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
@@ -247,13 +261,13 @@ command -v tmux &>/dev/null && function fz::tmux()
 			if [[ -n "${TMUX:-}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 
 		ctrl-k:session|ctrl-k:window|ctrl-k:pane)
-			__fz::confirm "Kill ?\n\n\tTMUX ${COLOR_CYAN}${selectedType}${COLOR_RESET} ( ${COLOR_CYAN}${selectedTarget}${COLOR_RESET} )" || return 0
+			__fz:api::confirm "Kill ?\n\n\tTMUX ${COLOR_CYAN}${selectedType}${COLOR_RESET} ( ${COLOR_CYAN}${selectedTarget}${COLOR_RESET} )" || return 0
 			tmux kill-"${selectedType}" -t "${selectedTarget}"
 		;;
 	esac
 }
 
-command -v tmux &>/dev/null && function __fz::tmux::help()
+command -v tmux &>/dev/null && function __fz::tmux::fz::help()
 {
 	cat <<- HEREDOC
 	    tmux [QUERY]
@@ -264,35 +278,70 @@ command -v tmux &>/dev/null && function __fz::tmux::help()
 	HEREDOC
 }
 
-function __fz::commands() { compgen -A function "fz::" | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
+### api functions
+##################
 
-function _fz::completion()
+function __fz:api::command()
+(
+	local cmd=
+
+	local cmdSearch= ; for cmdSearch in "$@" ; do
+		unalias "${cmdSearch}" &>/dev/null || :
+		unset -f "${cmdSearch}" &>/dev/null || :
+
+		cmdSearch=$( command -v "${cmdSearch}" || : )
+		[[ -n "${cmdSearch}" ]] && cmd=${cmdSearch} && break
+	done
+
+	printf '%s\n' "${cmd}"
+)
+
+function __fz:api::confirm()
 {
-	local command="${1:-}"
+	local msg=${1:-"Proceed?"}
+	local answer=
 
-	declare -F "fz::${command}" &>/dev/null || return 1
-	declare -F "__fz::${command}::completion" &>/dev/null || return 0
+	printf -v msg '%b\n\n' "${msg}"
 
-	"__fz::${command}::completion"
+	answer=$( printf '%s\n' 'Yes' 'No' | __fz:api::fzf --border=rounded --disabled --header="${msg}" --height=10 --no-info --prompt="${FUNCNAME[1]} > " --reverse )
+	[[ "${answer}" == "Yes" ]]
 }
 
-function __fz::completion::bash()
-{
-	local commandList=""
+# treat fzf cancellation (130) as success to avoid triggering pipefail
+function __fz:api::fzf() { fzf "$@" || (( $? == 130 )) ; }
 
-	commandList=$( __fz::commands )
-	commandList=${commandList//$'\n'/ }
+### core functions
+##################
+
+function __fz:core::commands() { compgen -A function "fz::" | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
+
+function _fz:core::completion()
+{
+	local cmd=${1:-}
+
+	declare -F "fz::${cmd}" &>/dev/null || return 1
+	declare -F "__fz::${cmd}::fz::completion" &>/dev/null || return 0
+
+	"__fz::${cmd}::fz::completion"
+}
+
+function __fz:core::completion::bash()
+{
+	local cmdList=
+
+	cmdList=$( __fz:core::commands )
+	cmdList=${cmdList//$'\n'/ }
 
 	cat <<- HEREDOC
 	_fz_completion() {
 		local cur="\${COMP_WORDS[COMP_CWORD]}"
 		local command="\${COMP_WORDS[1]}"
-		local commands="-h --help -V --version ${commandList}"
+		local commands="-h --help -V --version ${cmdList}"
 
 		if [[ \${COMP_CWORD} -eq 1 ]] ; then
 			COMPREPLY=( \$( compgen -W "\${commands}" -- "\${cur}" ) )
 		else
-			local completions="\$( fz _fz::completion "\${command}" )"
+			local completions="\$( fz _fz:core::completion "\${command}" )"
 			COMPREPLY=( \$( compgen -W "\${completions}" -- "\${cur}" ) )
 		fi
 	}
@@ -301,11 +350,10 @@ function __fz::completion::bash()
 	HEREDOC
 }
 
-function __fz::completion::zsh()
+function __fz:core::completion::zsh()
 {
-	local commandList=""
-
-	commandList=$( __fz::commands | awk '{ printf "\t\t\"%s:Run fz %s\"\n", $0, $0 }' )
+	local cmdList=
+	cmdList=$( __fz:core::commands | awk '{ printf "\t\t\"%s:Run fz %s\"\n", $0, $0 }' )
 
 	cat <<- HEREDOC
 	#compdef fz
@@ -316,7 +364,7 @@ function __fz::completion::zsh()
 			"--help:Show help"
 			"-V:Show version"
 			"--version:Show version"
-	${commandList}
+	${cmdList}
 		)
 
 		if (( CURRENT == 2 )) ; then
@@ -325,7 +373,7 @@ function __fz::completion::zsh()
 		fi
 
 		local command="\${words[2]}"
-		local -a completions=( \$( fz _fz::completion "\${command}" ) )
+		local -a completions=( \$( fz _fz:core::completion "\${command}" ) )
 		_describe 'completion' completions
 	}
 
@@ -333,26 +381,12 @@ function __fz::completion::zsh()
 	HEREDOC
 }
 
-function __fz::confirm()
+function __fz:core::help()
 {
-	local msg="${1:-"Proceed?"}"
-	local answer=""
+	local cmd=
+	local helpFunction=
 
-	printf -v msg '%b\n\n' "${msg}"
-
-	answer=$( printf '%s\n' 'Yes' 'No' | __fz::fzf --border=rounded --disabled --header="${msg}" --height=10 --no-info --prompt="${FUNCNAME[1]} > " --reverse )
-	[[ "${answer}" == "Yes" ]]
-}
-
-# treat fzf cancellation (130) as success to avoid triggering pipefail
-function __fz::fzf() { fzf "$@" || (( $? == 130 )) ; }
-
-function __fz::help()
-{
-	local command=""
-	local helpFunction=""
-
-	__fz::version
+	__fz:core::version
 
 	cat <<- HEREDOC
 
@@ -363,14 +397,14 @@ function __fz::help()
 
 	Commands:
 
-	$( __fz::commands | awk '{ print "    " $0 }' )
+	$( __fz:core::commands | awk '{ print "    " $0 }' )
 
 	Command arguments:
 	$(
-		while IFS= read -r command ; do
-			helpFunction="__fz::${command}::help"
+		while IFS= read -r cmd ; do
+			helpFunction="__fz::${cmd}::fz::help"
 			declare -F "${helpFunction}" &>/dev/null && printf '\n' && "${helpFunction}"
-		done < <( __fz::commands )
+		done < <( __fz:core::commands )
 	)
 
 	Options:
@@ -380,27 +414,26 @@ function __fz::help()
 	HEREDOC
 }
 
-function __fz::main()
+function __fz:core::main()
 {
-	local arg="${1:---help}"
+	local arg=${1:-"--help"}
 
 	case "${arg}" in
 		--bash-completion)
-			__fz::completion::bash ;;
+			__fz:core::completion::bash ;;
 
 		--zsh-completion)
-			__fz::completion::zsh ;;
+			__fz:core::completion::zsh ;;
 
 		-h|--help)
-			__fz::help ;;
+			__fz:core::help ;;
 
 		-V|--version)
-			__fz::version ;;
+			__fz:core::version ;;
 
-		_fz::*)
-			# non-public (internal) functions
+		_fz:*)
 			shift
-			"${arg}" "$@"
+			"${arg}" "$@"                           # non-public (internal) functions
 		;;
 
 		*)
@@ -422,6 +455,6 @@ function __fz::main()
 	return $?
 }
 
-function __fz::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
+function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
 
-__fz::main "$@"
+__fz:core::main "$@"

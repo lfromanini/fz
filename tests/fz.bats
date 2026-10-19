@@ -71,7 +71,7 @@ function teardown() { true ; }
 
 @test "fz _fz::completion kill  # valid non-public (internal) function call" {
 
-	run bash "${PATH_BIN}"/fz _fz::completion kill
+	run bash "${PATH_BIN}"/fz _fz:core::completion kill
 
 	[[ "${status}" == 0 ]]
 	[[ "${output}" == "SIG"* ]]
@@ -101,7 +101,7 @@ function teardown() { true ; }
 	while IFS= read -r command ; do
 		[[ "${bashCompletion}" == *"${command}"* ]]
 		[[ "${zshCompletion}" == *"${command}"* ]]
-	done < <( __fz::commands )
+	done < <( __fz:core::commands )
 }
 
 @test "fz --bash-completion ... # valid bash completion" {

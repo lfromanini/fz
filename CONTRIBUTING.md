@@ -9,11 +9,12 @@ Contributions are welcome. Please follow the conventions below when adding or mo
 ### Code Structure
 
 - `fz::*` functions are public commands. Every `fz::*` function must correspond to a command that can be invoked as `fz <command>`.
-- Public commands are automatically discovered by `__fz::commands`. They are therefore automatically included in `--help` and shell completions.
+- Add a `__fz::<command>::fz::help` function for every `fz::<command>` command. Help functions are automatically discovered and included in `--help`.
+- Public commands are automatically discovered by `__fz:core::commands`. They are therefore automatically included in `--help` and shell completions.
+- `_fz::*` functions are internal functions intended to be called by developers. Since FZF starts a new shell for previews, you may need to call an internal function via `fz _fz::<command>::<function>`.
 - `__fz::*` functions are private support functions and are not exposed as commands.
-- Add a `__fz::<command>::help` function for every `fz::<command>` command. Help functions are automatically discovered and included in `--help`.
 - Keep `fz::*` command functions in alphabetical order.
-- Keep `__fz::*` support functions in alphabetical order within their respective sections.
+- Keep `__fz::*` support functions in alphabetical order within their respective scope.
 
 ### Code Style
 
@@ -33,13 +34,31 @@ command -v tmux &>/dev/null && function fz::tmux()
 	...
 }
 
-command -v tmux &>/dev/null && function __fz::tmux::help()
+command -v tmux &>/dev/null && function __fz::tmux::fz::help()
 {
 	...
 }
 ```
 
 Optional commands must be tested both when their dependency is installed and when it is unavailable.
+
+### Internal API
+
+The following functions provide common utilities for internal `fz` functions.
+
+- `__fz:api::command [COMMAND ...]`
+
+  Resolves the first available command from the given list and prints its resolved value to standard output. Before resolving each candidate, it removes any alias or shell function with the same name to ensure that `command -v` does not resolve to either of them. Candidates are checked in order, and the search stops at the first successful match. If no command is found, an empty line is printed.
+
+- `__fz:api::confirm [MESSAGE]`
+
+  Prompts the user to confirm an action using `fzf`, presenting `Yes` and `No` options. `MESSAGE` is displayed as the prompt header and defaults to `Proceed?` when omitted. The calling function's name is used as the prompt prefix.
+
+  Returns success if the user selects `Yes`, and failure otherwise.
+
+- `__fz:api::fzf [ARG ...]`
+
+  Wraps `fzf`, forwarding all arguments and treating exit status `130` (cancellation) as success. This prevents user cancellation from triggering `pipefail` in calling pipelines.
 
 ### Completions
 
@@ -50,7 +69,7 @@ The top-level command list is generated automatically from the available public 
 Commands may also provide their own completions for arguments and subcommands by defining a completion function in their private namespace:
 
 ```bash
-function __fz::kill::completion()
+function __fz::<command>::fz::completion()
 {
 	...
 }
@@ -59,12 +78,12 @@ function __fz::kill::completion()
 The completion function is associated with the corresponding command by its name:
 
 ```text
-fz::kill
+fz::<command>
     |
-    +-- __fz::kill::completion
+    +-- __fz::<command>::fz::completion
 ```
 
-This allows commands to provide argument or subcommand completions without requiring changes to the global completion implementation.
+This allows commands to provide argument or subcommand completions without requiring changes to the global completion implementation. For example, `__fz::kill::fz::completion` provides completions for `fz::kill`.
 
 ### Help
 
