@@ -11,7 +11,7 @@ function mockFzfEscape()
 {
 	function fzf()
 	{
-		if [[ "${1}" == "--bash" ]] ; then
+		if [[ "$1" == "--bash" ]] ; then
 			"${PATH_MOCKS_DIR}"/fzf --bash
 			return $?
 		fi

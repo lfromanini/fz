@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.8.0"
+readonly VERSION="1.9.0"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -43,6 +43,74 @@ function __fz::env::fz::help()
 	        Press <CTRL> + <A> or <CTRL> + <SPACE> to select all filtered results.
 
 	        Example: ${APP_NAME} env PATH
+	HEREDOC
+}
+
+### grep
+
+function fz::grep()
+{
+	local fzfPreview='cat {1}'
+	local args=( )
+	local exclude_dirs=( )
+	local binSearcher=
+	local binBatcat=
+	local input=
+	local fp=
+
+	binSearcher=$( __fz:api::command rg grep )
+
+	[[ ${FZ_GREP_EXCLUDE_DIR+x} ]] || export FZ_GREP_EXCLUDE_DIR=".git|.venv|node_modules|__pycache__"
+	IFS='|' read -r -a exclude_dirs <<< "${FZ_GREP_EXCLUDE_DIR}"
+
+	case "${binSearcher}" in
+		*/rg)
+			local dir= ; for dir in "${exclude_dirs[@]}" ; do
+				args+=( "--glob=!${dir}/" )
+			done
+
+			args+=( "--color=always" "--hidden" "--ignore-case" "--line-number" "--with-filename" "$*" "." )
+		;;
+
+		*/grep)
+			command grep --color=always "" <<< "" &>/dev/null && args=( "--color=always" )
+
+			command grep --exclude-dir=".git" "" <<< "" &>/dev/null && {
+				local dir= ; for dir in "${exclude_dirs[@]}" ; do
+					args+=( "--exclude-dir=${dir}" )
+				done
+			}
+
+			args+=( "-H" "-i" "-n" "-r" "$*" "." )
+		;;
+
+		*)
+			return 127
+		;;
+	esac
+
+	binBatcat=$( __fz:api::command batcat bat )
+	[[ -n "${binBatcat}" ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers {1}"
+
+	input=$( "${binSearcher}" "${args[@]}" )
+	fp=$( __fz:api::fzf --ansi --delimiter=":" --preview="${fzfPreview}" --preview-window="right:70%" --prompt="${binSearcher##*/} > " --reverse <<< "${input}" | cut -d: -f1 )
+
+	[[ -z "${fp}" ]] || "${EDITOR:-echo}" "${fp}"
+}
+
+function __fz::grep::fz::help()
+{
+	cat <<- HEREDOC
+	    grep [QUERY]
+	        Recursively search for text in files using ripgrep (rg) or grep.
+	        Press <ENTER> to open the selected file in the editor.
+
+	        Environment:
+	            FZ_GREP_EXCLUDE_DIR
+	                Pipe-separated directory names to exclude from the search.
+	                Default: .git|.venv|node_modules|__pycache__
+
+	        Example: ${APP_NAME} grep TODO
 	HEREDOC
 }
 

@@ -4,8 +4,7 @@
 
 function setup() {
 	load "support/common.bash"
-
-	export TMUX=""
+	export TMUX=
 }
 
 function teardown() { true ; }

@@ -46,6 +46,27 @@ Browse environment variables and their values. Press `<CTRL> + <A>` or `<CTRL> +
 fz env
 fz env PATH
 ```
+#### grep [QUERY]
+
+Recursively search for text in files using [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) or `grep`, with interactive filtering and file previews. Press `<ENTER>` to open the selected file in the editor.
+
+By default, `.git`, `.venv`, `__pycache__` and `node_modules` directories are excluded from the search.
+
+```bash
+fz grep
+fz grep TODO
+fz grep "function myFunc"
+```
+
+Customize excluded directories using the `FZ_GREP_EXCLUDE_DIR` environment variable. Separate directory names with `|`.
+
+```bash
+FZ_GREP_EXCLUDE_DIR=".git|build|dist"
+```
+
+Set `FZ_GREP_EXCLUDE_DIR=""` to disable directory exclusions.
+
+> **Note:** Directory exclusions with `grep` depend on support for the `--exclude-dir` option in the installed version. If unsupported, the search runs without directory exclusions.
 
 #### kill [SIGNAL]
 
@@ -156,8 +177,9 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 
 ##### Optional Requirements
 
-- [bat](https://github.com/sharkdp/bat) (enables enhanced previews)
-- tmux (enables the `fz tmux` command)
+- [bat](https://github.com/sharkdp/bat): enables enhanced previews
+- [ripgrep (rg)](https://github.com/BurntSushi/ripgrep): provides faster recursive searches
+- tmux: enables the `fz tmux` command
 
 ## LICENSE
 
