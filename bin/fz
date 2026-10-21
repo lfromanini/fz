@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.9.2"
+readonly VERSION="1.9.3"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -58,7 +58,7 @@ function fz::grep()
 	local args=( )
 	local exclude_dirs=( )
 
-	[[ ${FZ_GREP_EXCLUDE_DIR+x} ]] || FZ_GREP_EXCLUDE_DIR=".git,.venv,__pycache__,node_modules"
+	[[ ${FZ_GREP_EXCLUDE_DIR+x} ]] || FZ_GREP_EXCLUDE_DIR=$( __fz::grep::defaultExcludeDir )
 
 	binSearcher=$( __fz:api::command rg grep )
 
@@ -95,6 +95,8 @@ function fz::grep()
 	[[ -z "${fp}" ]] || "${EDITOR:-echo}" "${fp}"
 }
 
+function __fz::grep::defaultExcludeDir() { printf '%s' ".git,.venv,__pycache__,node_modules" ; }
+
 function __fz::grep::fz::help()
 {
 	cat <<- HEREDOC
@@ -105,7 +107,7 @@ function __fz::grep::fz::help()
 	        Environment:
 	            FZ_GREP_EXCLUDE_DIR
 	                Comma-separated directory names to exclude from the search.
-	                Default: .git,.venv,__pycache__,node_modules
+	                Default: $( __fz::grep::defaultExcludeDir )
 
 	        Example: ${APP_NAME} grep TODO
 	HEREDOC
