@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.11.0"
+readonly VERSION="1.11.1"
 
 # TODO: use PRIMARY, SECONDARY, ACCENT, EMPHASIS, STRONG, MUTED, SUBTLE, DISABLED, HINT, GHOST
 readonly COLOR_CYAN=$'\033[1;36m'
@@ -498,7 +498,7 @@ function __fz:core::main()
 
 		-h|--help)
 			binBatcat=$( __fz:api::command batcat bat )
-			if [[ -n "${binBatcat}" ]] ; then __fz:core::help | "${binBatcat}" --language=help --style=plain ; else __fz:core::help ; fi
+			if [[ -n "${binBatcat}" ]] ; then __fz:core::help | "${binBatcat}" --language=help --paging=never --style=plain ; else __fz:core::help ; fi
 		;;
 
 		-V|--version)
