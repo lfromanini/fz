@@ -27,3 +27,13 @@ function teardown() { true ; }
 	[[ "${status}" == 0 ]]
 	[[ -z "${output}" ]]
 }
+
+@test "fz grep ................ # grep is unavailable" {
+
+	bats_require_minimum_version 1.5.0
+	set +o errexit
+	PATH="" run -127 bash "${PATH_BIN}"/fz grep
+
+	[[ "${status}" == 127 ]]
+	[[ -z "${output}" ]]
+}

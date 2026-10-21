@@ -58,13 +58,13 @@ fz grep TODO
 fz grep "function myFunc"
 ```
 
-Customize excluded directories using the `FZ_GREP_EXCLUDE_DIR` environment variable. Separate directory names with `|`.
+Customize excluded directories using the `FZ_GREP_EXCLUDE_DIR` environment variable. Separate directory names with `,`.
 
 ```bash
-FZ_GREP_EXCLUDE_DIR=".git|build|dist"
+export FZ_GREP_EXCLUDE_DIR=".git,build,dist"
 ```
 
-Set `FZ_GREP_EXCLUDE_DIR=""` to disable directory exclusions.
+Set `export FZ_GREP_EXCLUDE_DIR=""` to disable directory exclusions.
 
 > **Note:** Directory exclusions with `grep` depend on support for the `--exclude-dir` option in the installed version. If unsupported, the search runs without directory exclusions.
 
