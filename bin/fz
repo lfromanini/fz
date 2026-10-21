@@ -5,8 +5,9 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.9.3"
+readonly VERSION="1.10.0"
 
+# TODO: use PRIMARY, SECONDARY, ACCENT, EMPHASIS, STRONG, MUTED, SUBTLE, DISABLED, HINT, GHOST
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
 readonly COLOR_RESET=$'\033[0m'
@@ -118,7 +119,8 @@ function __fz::grep::fz::help()
 function fz::kill()
 {
 	local signal=${1:-"-SIGTERM"}
-	local procs=
+	local cmdProcs="ps aux"
+	local fzfHeader=
 	local selection=
 	local key=
 	local pid=
@@ -127,10 +129,10 @@ function fz::kill()
 	signal=$( tr '[:lower:]' '[:upper:]' <<< "${signal}" )
 	[[ "${signal}" == -* ]] || signal="-${signal}"  # make it "-SIGNAL"
 
-	procs=$( ps aux )
+	fzfHeader=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n[ CTRL + R ] .. refresh process list\n\n'
 
 	selection=$(
-		__fz:api::fzf --exact --expect="enter,ctrl-k" --header=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n\n' --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "${procs}"
+		__fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect="enter,ctrl-k" --header="${fzfHeader}" --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
 	)
 
 	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
@@ -159,6 +161,7 @@ function __fz::kill::fz::help()
 	cat <<- HEREDOC
 	    kill [SIGNAL]
 	        Signal defaults to -SIGTERM; <CTRL> + <K> uses -SIGKILL.
+	        Use <CTRL> + <R> to refresh the process list.
 
 	        Examples:
 	            ${APP_NAME} kill

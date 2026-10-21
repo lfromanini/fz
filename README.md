@@ -70,7 +70,7 @@ Set `export FZ_GREP_EXCLUDE_DIR=""` to disable directory exclusions.
 
 #### kill [SIGNAL]
 
-Browse running processes and send a signal. Defaults to SIGTERM; `<CTRL> + <K>` sends SIGKILL.
+Browse running processes and send a signal. Defaults to SIGTERM; `<CTRL> + <K>` sends SIGKILL. Use `<CTRL> + <R>` to refresh the process list.
 
 ```bash
 fz kill
