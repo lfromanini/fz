@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.9.1"
+readonly VERSION="1.9.2"
 
 readonly COLOR_CYAN=$'\033[1;36m'
 readonly COLOR_MAGENTA=$'\033[35m'
@@ -104,8 +104,8 @@ function __fz::grep::fz::help()
 
 	        Environment:
 	            FZ_GREP_EXCLUDE_DIR
-	                Pipe-separated directory names to exclude from the search.
-	                Default: .git|.venv|node_modules|__pycache__
+	                Comma-separated directory names to exclude from the search.
+	                Default: .git,.venv,__pycache__,node_modules
 
 	        Example: ${APP_NAME} grep TODO
 	HEREDOC
