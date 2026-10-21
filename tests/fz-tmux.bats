@@ -15,7 +15,7 @@ function teardown() { true ; }
 	set +o errexit
 	PATH="" run -127 bash "${PATH_BIN}"/fz tmux
 
-	[[ "${status}" == 1 ]]
+	[[ "${status}" == 127 ]]
 	[[ "${output}" == "[fz error]:"*"tmux"* ]]
 }
 
