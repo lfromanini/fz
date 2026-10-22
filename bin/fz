@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.12.0"
+readonly VERSION="1.13.0"
 
 
 ### commands
@@ -224,7 +224,7 @@ function fz::ssh()
 	local fzfFilter=
 
 	IFS= read -r -d '' fzfFilter <<- 'AWK' || :     # use a heredoc to improve readability when building the awk preview command
-	awk 'BEGIN {
+	awk -v c1="\${FZ_COLOR_MUTED}" -v cr="\${FZ_COLOR_RESET}" 'BEGIN {
 		names[\"host\"] = \"Host\"                  # convert directive names to PascalCase
 		names[\"user\"] = \"User\"
 		names[\"hostname\"] = \"HostName\"
@@ -253,7 +253,7 @@ function fz::ssh()
 		key = names[\$1]
 		value = \$0
 		sub( /^[^[:space:]]+[[:space:]]+/, \"\", value )
-		printf \"%-22s%s\n\", key, value
+		printf \"%s%-22s%s%s\n\", c1, key, cr, value
 	}'
 	AWK
 
