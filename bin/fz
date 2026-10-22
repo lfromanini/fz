@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.13.0"
+readonly VERSION="1.14.0"
 
 
 ### commands
@@ -122,7 +122,7 @@ function fz::kill()
 
 	__fz::kill::isSignal "${signal}" || return $?
 	signal=$( tr '[:lower:]' '[:upper:]' <<< "${signal}" )
-	[[ "${signal}" == -* ]] || signal="-${signal}"  # make it "-SIGNAL"
+	[[ "${signal}" == -* ]] || signal="-${signal}"          # make it "-SIGNAL"
 
 	fzfHeader=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n[ CTRL + R ] .. refresh process list\n\n'
 
@@ -130,8 +130,8 @@ function fz::kill()
 		__fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect="enter,ctrl-k" --header="${fzfHeader}" --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
 	)
 
-	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
-	selection=${selection#*$'\n'}                   # remove the key line, leaving the selected process
+	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
+	selection=${selection#*$'\n'}                           # remove the key line, leaving the selected process
 	pid=$( awk '{ print $2 }' <<< "${selection}" )
 
 	case "${key}" in
@@ -143,7 +143,7 @@ function fz::kill()
 		;;
 
 		*)
-			return 0 ;;                             # fzf cancelled
+			return 0 ;;                                     # fzf cancelled
 	esac
 
 	__fz::kill::kill "${signal}" "${pid}"
@@ -191,7 +191,7 @@ function __fz::kill::kill()
 
 function fz::man()
 {
-	# shellcheck disable=SC2016                     # SC2016: Expressions don't expand in single quotes, use double quotes for that.
+	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
 	local fzfPreview='awk '\''{ gsub( /[ (),]/, " " ) ; print $2, $1 }'\'' <<< {} | xargs man'
 	local binBatcat=
 
@@ -223,7 +223,7 @@ function fz::ssh()
 
 	local fzfFilter=
 
-	IFS= read -r -d '' fzfFilter <<- 'AWK' || :     # use a heredoc to improve readability when building the awk preview command
+	IFS= read -r -d '' fzfFilter <<- 'AWK' || :             # use a heredoc to improve readability when building the awk preview command
 	awk -v c1="\${FZ_COLOR_MUTED}" -v cr="\${FZ_COLOR_RESET}" 'BEGIN {
 		names[\"host\"] = \"Host\"                  # convert directive names to PascalCase
 		names[\"user\"] = \"User\"
@@ -275,7 +275,7 @@ function fz::ssh()
 		__fzf_list_hosts | __fz:api::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="ssh > " --reverse --select-1
 	' 2>/dev/null )
 
-	# shellcheck disable=SC2029                     # SC2029: Note that, unescaped, this expands on the client side.
+	# shellcheck disable=SC2029                             # SC2029: Note that, unescaped, this expands on the client side.
 	[[ -z "${sshServer}" ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
 }
 
@@ -310,8 +310,8 @@ command -v tmux &>/dev/null && function fz::tmux()
 		| __fz:api::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="tmux > " --query="$*" --reverse --select-1 --tmux
 	)
 
-	key=${selection%%$'\n'*}                        # fzf --expect outputs the key pressed on the first line
-	selection=${selection#*$'\n'}                   # remove the key line, leaving the selected process
+	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
+	selection=${selection#*$'\n'}                           # remove the key line, leaving the selected process
 	selectedType=$( awk '{ print $1 }' <<< "${selection}" )
 	selectedTarget=$( awk '{ print $2 }' <<< "${selection}" )
 
@@ -482,6 +482,7 @@ function __fz:core::help()
 
 function __fz:core::init()
 {
+	# TODO: allow theme change
 	__fz:core::theme::dracula
 	export FZ_COLOR_RESET=$'\x1b[0m'
 }
@@ -514,7 +515,7 @@ function __fz:core::main()
 
 		_fz:*)
 			shift
-			"${arg}" "$@"                           # non-public (internal) functions
+			"${arg}" "$@"                                   # non-public (internal) functions
 		;;
 
 		*)
@@ -538,14 +539,29 @@ function __fz:core::main()
 	return $?
 }
 
+function __fz:core::theme::catppuccinMocha()
+{
+    export FZ_COLOR_PRIMARY=$'\x1b[38;2;137;220;235m'       # #89DCEB
+    export FZ_COLOR_SECONDARY=$'\x1b[38;2;203;166;247m'     # #CBA6F7
+    export FZ_COLOR_ACCENT=$'\x1b[38;2;245;194;231m'        # #F5C2E7
+    export FZ_COLOR_EMPHASIS=$'\x1b[38;2;249;226;175m'      # #F9E2AF
+    export FZ_COLOR_STRONG=$'\x1b[38;2;205;214;244m'        # #CDD6F4
+    export FZ_COLOR_MUTED=$'\x1b[38;2;108;112;134m'         # #6C7086
+
+    export BAT_THEME="Catppuccin Mocha"
+    export FZF_DEFAULT_OPTS="--color=fg:#CDD6F4,hl:#CBA6F7 --color=fg+:#CDD6F4,hl+:#CBA6F7 --color=info:#F9E2AF,prompt:#A6E3A1,pointer:#F5C2E7 --color=marker:#F5C2E7,spinner:#FAB387,header:#6C7086"
+    export RG_COLORS="path:fg:0xcb,0xa6,0xf7:line:fg:0xa6,0xe3,0xa1:column:fg:0xa6,0xe3,0xa1:match:fg:0xf5,0xc2,0xe7"
+    export GREP_COLORS="ms=01;38;2;245;194;231:mc=01;38;2;245;194;231:fn=38;2;137;220;235:ln=38;2;203;166;247:bn=38;2;108;112;134:se=38;2;88;91;112"
+}
+
 function __fz:core::theme::dracula()
 {
-	export FZ_COLOR_PRIMARY=$'\x1b[38;2;139;233;253m'      # #8BE9FD
-	export FZ_COLOR_SECONDARY=$'\x1b[38;2;189;147;249m'    # #BD93F9
-	export FZ_COLOR_ACCENT=$'\x1b[38;2;255;121;198m'       # #FF79C6
-	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;241;250;140m'     # #F1FA8C
-	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'       # #F8F8F2
-	export FZ_COLOR_MUTED=$'\x1b[38;2;98;114;164m'         # #6272A4
+	export FZ_COLOR_PRIMARY=$'\x1b[38;2;139;233;253m'       # #8BE9FD
+	export FZ_COLOR_SECONDARY=$'\x1b[38;2;189;147;249m'     # #BD93F9
+	export FZ_COLOR_ACCENT=$'\x1b[38;2;255;121;198m'        # #FF79C6
+	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;241;250;140m'      # #F1FA8C
+	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'        # #F8F8F2
+	export FZ_COLOR_MUTED=$'\x1b[38;2;98;114;164m'          # #6272A4
 
 	export BAT_THEME=Dracula
 	export FZF_DEFAULT_OPTS="--color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
