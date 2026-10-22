@@ -5,12 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.11.2"
-
-# TODO: use PRIMARY, SECONDARY, ACCENT, EMPHASIS, STRONG, MUTED, SUBTLE, DISABLED, HINT, GHOST
-readonly COLOR_CYAN=$'\033[1;36m'
-readonly COLOR_MAGENTA=$'\033[35m'
-readonly COLOR_RESET=$'\033[0m'
+readonly VERSION="1.12.0"
 
 
 ### commands
@@ -25,14 +20,14 @@ function fz::env()
 	local var=
 
 	input=$(
-		env | sort | awk -F= -v c1="${COLOR_CYAN}" -v c2="${COLOR_MAGENTA}" -v cr="${COLOR_RESET}" \
+		env | sort | awk -F= -v c1="${FZ_COLOR_PRIMARY}" -v c2="${FZ_COLOR_SECONDARY}" -v cr="${FZ_COLOR_RESET}" \
 			'{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "%s%s%s=%s%s\n", c1, $1, c2, cr, value }'
 	)
 
 	selection=$( __fz:api::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
 
 	while IFS= read -r var ; do
-		[[ -z "${var}" ]] || printf "${COLOR_CYAN}%s${COLOR_MAGENTA}=${COLOR_RESET}%q\n" "${var}" "${!var}"
+		[[ -z "${var}" ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${var}" "${!var}"
 	done <<< "${selection}"
 }
 
@@ -143,7 +138,7 @@ function fz::kill()
 		enter) ;;
 
 		ctrl-k)
-			__fz:api::confirm "Kill ?\n\n\tSIGKILL ( ${COLOR_CYAN}${selection}${COLOR_RESET} )" || return 0
+			__fz:api::confirm "Kill ?\n\n\t${FZ_COLOR_EMPHASIS}SIGKILL${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET} )" || return 0
 			signal="-SIGKILL"
 		;;
 
@@ -331,7 +326,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 			if [[ -n "${TMUX:-}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 
 		ctrl-k:session|ctrl-k:window|ctrl-k:pane)
-			__fz:api::confirm "Kill ?\n\n\tTMUX ${COLOR_CYAN}${selectedType}${COLOR_RESET} ( ${COLOR_CYAN}${selectedTarget}${COLOR_RESET} )" || return 0
+			__fz:api::confirm "Kill ?\n\n\tTMUX ${FZ_COLOR_EMPHASIS}${selectedType}${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selectedTarget}${FZ_COLOR_RESET} )" || return 0
 			tmux kill-"${selectedType}" -t "${selectedTarget}"
 		;;
 	esac
@@ -462,8 +457,9 @@ function __fz:core::help()
 
 	Pipe commands to FZF.
 
-	Usage: ${APP_NAME} [COMMAND] [ARGUMENTS]
-	       ${APP_NAME} [OPTION]
+	Usage:
+	    ${APP_NAME} [COMMAND] [ARGUMENTS]
+	    ${APP_NAME} [OPTION]
 
 	Commands:
 
@@ -484,6 +480,12 @@ function __fz:core::help()
 	HEREDOC
 }
 
+function __fz:core::init()
+{
+	__fz:core::theme::dracula
+	export FZ_COLOR_RESET=$'\x1b[0m'
+}
+
 function __fz:core::main()
 {
 	local arg=${1:-"--help"}
@@ -498,7 +500,13 @@ function __fz:core::main()
 
 		-h|--help)
 			binBatcat=$( __fz:api::command batcat bat )
-			if [[ -n "${binBatcat}" ]] ; then __fz:core::help 2>&1 | "${binBatcat}" --language=help --paging=never --style=plain ; else __fz:core::help ; fi
+
+			if [[ -n "${binBatcat}" ]] ; then
+				__fz:core::init
+				__fz:core::help 2>&1 | "${binBatcat}" --language=help --paging=never --style=plain
+			else
+				__fz:core::help
+			fi
 		;;
 
 		-V|--version)
@@ -510,13 +518,15 @@ function __fz:core::main()
 		;;
 
 		*)
+			__fz:core::init
+
 			command -v fzf &>/dev/null || {
-				printf '%s\n' "[${APP_NAME} error]: Install \"fzf\" to use ${APP_NAME}."
+				printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}"
 				return 127
 			}
 
 			declare -F "fz::${arg}" &>/dev/null || {
-				printf '%s\n' "[${APP_NAME} error]: Found argument \"${arg}\" which wasn't expected. Try --help."
+				printf '[%s]: Found argument "%s" which wasn'\''t expected. Try --help.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${arg}${FZ_COLOR_RESET}"
 				return 1
 			}
 
@@ -526,6 +536,21 @@ function __fz:core::main()
 	esac
 
 	return $?
+}
+
+function __fz:core::theme::dracula()
+{
+	export FZ_COLOR_PRIMARY=$'\x1b[38;2;139;233;253m'      # #8BE9FD
+	export FZ_COLOR_SECONDARY=$'\x1b[38;2;189;147;249m'    # #BD93F9
+	export FZ_COLOR_ACCENT=$'\x1b[38;2;255;121;198m'       # #FF79C6
+	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;241;250;140m'     # #F1FA8C
+	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'       # #F8F8F2
+	export FZ_COLOR_MUTED=$'\x1b[38;2;98;114;164m'         # #6272A4
+
+	export BAT_THEME=Dracula
+	export FZF_DEFAULT_OPTS="--color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
+	export RG_COLORS="path:fg:0xbd,0x93,0xf9:line:fg:0x50,0xfa,0x7b:column:fg:0x50,0xfa,0x7b:match:fg:0xff,0x55,0x55"
+	export GREP_COLORS="ms=01;38;2;255;121;198:mc=01;38;2;255;121;198:fn=38;2;139;233;253:ln=38;2;189;147;249:bn=38;2;98;114;164:se=38;2;68;71;90"
 }
 
 function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }

@@ -66,7 +66,7 @@ function teardown() { true ; }
 	run bash "${PATH_BIN}"/fz unsupportedArgument
 
 	[[ "${status}" == 1 ]]
-	[[ "${output}" == "[fz error]:"*"unsupportedArgument"* ]]
+	[[ "$( stripColors "${output}" )" == "[fz error]:"*"unsupportedArgument"* ]]
 }
 
 @test "fz _fz::completion kill  # valid non-public (internal) function call" {

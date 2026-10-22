@@ -6,6 +6,11 @@ export PATH_MOCKS="${PATH_MOCKS_DIR}:${PATH}"
 
 export FZF_MOCK_OUTPUT=""
 
+function stripColors()
+{
+	printf '%s' "$*" | sed $'s/\033\\[[0-9;]*m//g'
+}
+
 # shellcheck disable=SC2329     # SC2329: This function is never invoked. Check usage (or ignored if invoked indirectly).
 function mockFzfEscape()
 {

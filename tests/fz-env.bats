@@ -4,8 +4,6 @@
 
 function setup() {
 	load "support/common.bash"
-
-	load "support/env.bash"
 }
 
 function teardown() { true ; }
