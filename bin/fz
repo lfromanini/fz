@@ -480,13 +480,6 @@ function __fz:core::help()
 	HEREDOC
 }
 
-function __fz:core::theme()
-{
-	# TODO: allow theme change
-	__fz:core::theme::dracula
-	export FZ_COLOR_RESET=$'\x1b[0m'
-}
-
 function __fz:core::main()
 {
 	local arg=${1:-"--help"}
@@ -537,6 +530,13 @@ function __fz:core::main()
 	esac
 
 	return $?
+}
+
+function __fz:core::theme()
+{
+	# TODO: allow theme change
+	__fz:core::theme::dracula
+	export FZ_COLOR_RESET=$'\x1b[0m'
 }
 
 function __fz:core::theme::catppuccinMocha()
