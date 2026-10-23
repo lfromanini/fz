@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.14.0"
+readonly VERSION="1.14.1"
 
 
 ### commands
@@ -480,7 +480,7 @@ function __fz:core::help()
 	HEREDOC
 }
 
-function __fz:core::init()
+function __fz:core::theme()
 {
 	# TODO: allow theme change
 	__fz:core::theme::dracula
@@ -503,7 +503,7 @@ function __fz:core::main()
 			binBatcat=$( __fz:api::command batcat bat )
 
 			if [[ -n "${binBatcat}" ]] ; then
-				__fz:core::init
+				__fz:core::theme
 				__fz:core::help 2>&1 | "${binBatcat}" --language=help --paging=never --style=plain
 			else
 				__fz:core::help
@@ -519,7 +519,7 @@ function __fz:core::main()
 		;;
 
 		*)
-			__fz:core::init
+			__fz:core::theme
 
 			command -v fzf &>/dev/null || {
 				printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}"
@@ -549,7 +549,7 @@ function __fz:core::theme::catppuccinMocha()
     export FZ_COLOR_MUTED=$'\x1b[38;2;108;112;134m'         # #6C7086
 
     export BAT_THEME="Catppuccin Mocha"
-    export FZF_DEFAULT_OPTS="--color=fg:#CDD6F4,hl:#CBA6F7 --color=fg+:#CDD6F4,hl+:#CBA6F7 --color=info:#F9E2AF,prompt:#A6E3A1,pointer:#F5C2E7 --color=marker:#F5C2E7,spinner:#FAB387,header:#6C7086"
+    export FZF_DEFAULT_OPTS+=" --color=fg:#CDD6F4,hl:#CBA6F7 --color=fg+:#CDD6F4,hl+:#CBA6F7 --color=info:#F9E2AF,prompt:#A6E3A1,pointer:#F5C2E7 --color=marker:#F5C2E7,spinner:#FAB387,header:#6C7086"
     export RG_COLORS="path:fg:0xcb,0xa6,0xf7:line:fg:0xa6,0xe3,0xa1:column:fg:0xa6,0xe3,0xa1:match:fg:0xf5,0xc2,0xe7"
     export GREP_COLORS="ms=01;38;2;245;194;231:mc=01;38;2;245;194;231:fn=38;2;137;220;235:ln=38;2;203;166;247:bn=38;2;108;112;134:se=38;2;88;91;112"
 }
@@ -564,7 +564,7 @@ function __fz:core::theme::dracula()
 	export FZ_COLOR_MUTED=$'\x1b[38;2;98;114;164m'          # #6272A4
 
 	export BAT_THEME=Dracula
-	export FZF_DEFAULT_OPTS="--color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
+	export FZF_DEFAULT_OPTS+=" --color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
 	export RG_COLORS="path:fg:0xbd,0x93,0xf9:line:fg:0x50,0xfa,0x7b:column:fg:0x50,0xfa,0x7b:match:fg:0xff,0x55,0x55"
 	export GREP_COLORS="ms=01;38;2;255;121;198:mc=01;38;2;255;121;198:fn=38;2;139;233;253:ln=38;2;189;147;249:bn=38;2;98;114;164:se=38;2;68;71;90"
 }
