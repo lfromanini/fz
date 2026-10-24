@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME="${0##*/}"
-readonly VERSION="1.14.2"
+readonly VERSION="1.14.3"
 
 
 ### commands
@@ -46,7 +46,7 @@ function __fz::env::fz::help()
 
 function fz::grep()
 {
-	local fzfPreview="cat {1}"
+	local fzfPreview="nl -ba {1}"
 	local binSearcher=
 	local binBatcat=
 	local input=
