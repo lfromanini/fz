@@ -166,13 +166,40 @@ source ~/.zshrc
 
 4. Done!
 
+## Themes
+
+`fz` supports multiple color themes for its interactive interfaces and terminal output.
+
+Available themes:
+
+- `Dracula` (default)
+- `Catppuccin Mocha`
+- `Monokai Extended Bright`
+- `Nord`
+
+Set the `FZ_THEME` environment variable to choose a theme:
+
+```bash
+FZ_THEME="Catppuccin Mocha" fz grep TODO
+```
+
+Replace `Catppuccin Mocha` with any other available theme.
+
+To make a theme persistent, add the following line to your shell configuration file, such as `~/.bashrc` or `~/.zshrc`:
+
+```bash
+export FZ_THEME="Catppuccin Mocha"
+```
+
+If `FZ_THEME` is unset or contains an unsupported value, `fz` falls back to the default `Dracula` theme.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, testing and contribution conventions.
 
 #### Requirements
 
-- bash
+- Bash >= 4.2
 - [fzf](https://github.com/junegunn/fzf)
 
 ##### Optional Requirements

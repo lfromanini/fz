@@ -4,8 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-readonly APP_NAME="${0##*/}"
-readonly VERSION="1.14.3"
+readonly APP_NAME=${0##*/}
+readonly VERSION=1.15.0
 
 
 ### commands
@@ -16,7 +16,7 @@ readonly VERSION="1.14.3"
 function fz::env()
 {
 	local input=
-	local selection=""
+	local selection=
 	local var=
 
 	input=$(
@@ -27,7 +27,7 @@ function fz::env()
 	selection=$( __fz:api::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
 
 	while IFS= read -r var ; do
-		[[ -z "${var}" ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${var}" "${!var}"
+		[[ -z ${var} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${var}" "${!var}"
 	done <<< "${selection}"
 }
 
@@ -52,30 +52,31 @@ function fz::grep()
 	local input=
 	local fp=
 	local args=( )
-	local exclude_dirs=( )
 
-	[[ ${FZ_GREP_EXCLUDE_DIR+x} ]] || FZ_GREP_EXCLUDE_DIR=$( __fz::grep::defaultExcludeDir )
+	[[ -v FZ_GREP_EXCLUDE_DIR ]] || FZ_GREP_EXCLUDE_DIR=$( __fz::grep::defaultExcludeDir )
 
 	binSearcher=$( __fz:api::command rg grep )
 
-	case "${binSearcher}" in
+	case ${binSearcher} in
 		*/rg)
-			[[ -n "${FZ_GREP_EXCLUDE_DIR:-}" ]] && args=( "--glob=!{${FZ_GREP_EXCLUDE_DIR}}/" )
-			args+=( "--color=always" "--hidden" "--ignore-case" "--line-number" "--with-filename" "$*" "." )
+			[[ -n ${FZ_GREP_EXCLUDE_DIR:-} ]] && args=( --glob="!{${FZ_GREP_EXCLUDE_DIR}}/" )
+			# shellcheck disable=SC2206                     # SC2206: Quote to prevent word splitting/globbing, or split robustly with mapfile or `read -a`.
+			args+=( --color=always ${FZ_RIPGREP_COLORS} --hidden --ignore-case --line-number --with-filename "$*" . )
 		;;
 
 		*/grep)
-			command grep --color=always "" <<< "" &>/dev/null && args=( "--color=always" )
+			command grep --color=always "" <<< "" &>/dev/null && args=( --color=always )
 
 			command grep --exclude-dir="/" "" <<< "" &>/dev/null && {
-				IFS=, read -r -a exclude_dirs <<< "${FZ_GREP_EXCLUDE_DIR:-}"
+				local excludeDirs=( )
+				IFS=, read -r -a excludeDirs <<< "${FZ_GREP_EXCLUDE_DIR:-}"
 
-				local dir= ; for dir in "${exclude_dirs[@]}" ; do
-					args+=( "--exclude-dir=${dir}" )
+				local dir= ; for dir in "${excludeDirs[@]}" ; do
+					args+=( --exclude-dir="${dir}" )
 				done
 			}
 
-			args+=( "-H" "-i" "-n" "-r" "$*" "." )
+			args+=( -H -i -n -r "$*" . )
 		;;
 
 		*)
@@ -83,12 +84,12 @@ function fz::grep()
 	esac
 
 	binBatcat=$( __fz:api::command batcat bat )
-	[[ -n "${binBatcat}" ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers {1}"
+	[[ -n ${binBatcat} ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers {1}"
 
-	input=$( "${binSearcher}" "${args[@]}" )
+	input=$( ${binSearcher} "${args[@]}" )
 	fp=$( __fz:api::fzf --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${binSearcher##*/} > " --reverse <<< "${input}" | cut -d: -f1 )
 
-	[[ -z "${fp}" ]] || "${EDITOR:-echo}" "${fp}"
+	[[ -z ${fp} ]] || ${EDITOR:-echo} "${fp}"
 }
 
 function __fz::grep::defaultExcludeDir() { printf '%s' ".git,.venv,__pycache__,node_modules" ; }
@@ -122,7 +123,7 @@ function fz::kill()
 
 	__fz::kill::isSignal "${signal}" || return $?
 	signal=$( tr '[:lower:]' '[:upper:]' <<< "${signal}" )
-	[[ "${signal}" == -* ]] || signal="-${signal}"          # make it "-SIGNAL"
+	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
 
 	fzfHeader=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n[ CTRL + R ] .. refresh process list\n\n'
 
@@ -134,12 +135,12 @@ function fz::kill()
 	selection=${selection#*$'\n'}                           # remove the key line, leaving the selected process
 	pid=$( awk '{ print $2 }' <<< "${selection}" )
 
-	case "${key}" in
+	case ${key} in
 		enter) ;;
 
 		ctrl-k)
 			__fz:api::confirm "Kill ?\n\n\t${FZ_COLOR_EMPHASIS}SIGKILL${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET} )" || return 0
-			signal="-SIGKILL"
+			signal=-SIGKILL
 		;;
 
 		*)
@@ -168,7 +169,7 @@ function __fz::kill::isSignal()
 {
 	local signal=$1
 
-	[[ "${signal}" == --* || "${signal}" == [0-9]* ]] && return 1
+	[[ ${signal} == --* || ${signal} == [0-9]* ]] && return 1
 	builtin kill -l "${signal#-}" &>/dev/null
 }
 
@@ -197,7 +198,7 @@ function fz::man()
 
 	binBatcat=$( __fz:api::command batcat bat )
 
-	[[ -n "${binBatcat}" ]] && fzfPreview+=' | bash -c "col -bx | '"${binBatcat}"' --color=always --language=man --paging=never --style=plain"'
+	[[ -n ${binBatcat} ]] && fzfPreview+=' | bash -c "col -bx | '${binBatcat}' --color=always --language=man --paging=never --style=plain"'
 
 	__fz:api::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="man > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
@@ -244,10 +245,10 @@ function fz::ssh()
 		names[\"proxycommand\"] = \"ProxyCommand\"
 		names[\"proxyjump\"] = \"ProxyJump\"
 
-		for( name in names )                        # dynamically build the lookup pattern from the names array
+		for( name in names )                                # dynamically build the lookup pattern from the names array
 			pattern = pattern ( pattern ? \"|\" : \"\" ) name
 
-		pattern = \"^(\" pattern \")[[:space:]]\"   # ^(host|user|hostname|port|...)[[:space:]]
+		pattern = \"^(\" pattern \")[[:space:]]\"           # ^(host|user|hostname|port|...)[[:space:]]
 	}
 	\$0 ~ pattern {
 		key = names[\$1]
@@ -266,8 +267,8 @@ function fz::ssh()
 	local isRemoteCommand=false
 
 	for arg in "$@" ; do
-		[[ "${arg}" == "--" ]] && isRemoteCommand=true && continue
-		[[ "${isRemoteCommand}" == true ]] && remoteCommand+=( "${arg}" ) || sshArgs+=( "${arg}" )
+		[[ ${arg} == -- ]] && isRemoteCommand=true && continue
+		[[ ${isRemoteCommand} == true ]] && remoteCommand+=( "${arg}" ) || sshArgs+=( "${arg}" )
 	done
 
 	sshServer=$( bash --noprofile --norc -ic '
@@ -276,7 +277,7 @@ function fz::ssh()
 	' 2>/dev/null )
 
 	# shellcheck disable=SC2029                             # SC2029: Note that, unescaped, this expands on the client side.
-	[[ -z "${sshServer}" ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
+	[[ -z ${sshServer} ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
 }
 
 function __fz::ssh::fz::help()
@@ -315,7 +316,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 	selectedType=$( awk '{ print $1 }' <<< "${selection}" )
 	selectedTarget=$( awk '{ print $2 }' <<< "${selection}" )
 
-	case "${key}:${selectedType}" in
+	case ${key}:${selectedType} in
 		enter:session)
 			if [[ -n "${TMUX:-}" ]] ; then tmux switch-client -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget}" ; fi ;;
 
@@ -355,7 +356,7 @@ function __fz:api::command()
 		unset -f "${cmdSearch}" &>/dev/null || :
 
 		cmdSearch=$( command -v "${cmdSearch}" || : )
-		[[ -n "${cmdSearch}" ]] && cmd=${cmdSearch} && break
+		[[ -n ${cmdSearch} ]] && cmd=${cmdSearch} && break
 	done
 
 	printf '%s\n' "${cmd}"
@@ -369,7 +370,7 @@ function __fz:api::confirm()
 	printf -v msg '%b\n\n' "${msg}"
 
 	answer=$( printf '%s\n' 'Yes' 'No' | __fz:api::fzf --border=rounded --disabled --header="${msg}" --height=10 --no-info --prompt="${FUNCNAME[1]} > " --reverse )
-	[[ "${answer}" == "Yes" ]]
+	[[ ${answer} == Yes ]]
 }
 
 # treat fzf cancellation (130) as success to avoid triggering pipefail
@@ -378,16 +379,16 @@ function __fz:api::fzf() { fzf "$@" || (( $? == 130 )) ; }
 ### core functions
 ##################
 
-function __fz:core::commands() { compgen -A function "fz::" | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
+function __fz:core::commands() { compgen -A function fz:: | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
 
 function _fz:core::completion()
 {
 	local cmd=${1:-}
 
-	declare -F "fz::${cmd}" &>/dev/null || return 1
-	declare -F "__fz::${cmd}::fz::completion" &>/dev/null || return 0
+	declare -F fz::"${cmd}" &>/dev/null || return 1
+	declare -F __fz::"${cmd}"::fz::completion &>/dev/null || return 0
 
-	"__fz::${cmd}::fz::completion"
+	__fz::"${cmd}"::fz::completion
 }
 
 function __fz:core::completion::bash()
@@ -468,7 +469,7 @@ function __fz:core::help()
 	Command arguments:
 	$(
 		while IFS= read -r cmd ; do
-			helpFunction="__fz::${cmd}::fz::help"
+			helpFunction=__fz::"${cmd}"::fz::help
 			declare -F "${helpFunction}" &>/dev/null && printf '\n' && "${helpFunction}"
 		done < <( __fz:core::commands )
 	)
@@ -485,7 +486,7 @@ function __fz:core::main()
 	local arg=${1:-"--help"}
 	local binBatcat=
 
-	case "${arg}" in
+	case ${arg} in
 		--bash-completion)
 			__fz:core::completion::bash ;;
 
@@ -495,9 +496,9 @@ function __fz:core::main()
 		-h|--help)
 			binBatcat=$( __fz:api::command batcat bat )
 
-			if [[ -n "${binBatcat}" ]] ; then
+			if [[ -n ${binBatcat} ]] ; then
 				__fz:core::theme
-				__fz:core::help 2>&1 | "${binBatcat}" --language=help --paging=never --style=plain
+				__fz:core::help 2>&1 | ${binBatcat} --language=help --paging=never --style=plain
 			else
 				__fz:core::help
 			fi
@@ -508,7 +509,7 @@ function __fz:core::main()
 
 		_fz:*)
 			shift
-			"${arg}" "$@"                                   # non-public (internal) functions
+			${arg} "$@"                                     # non-public (internal) functions
 		;;
 
 		*)
@@ -519,7 +520,7 @@ function __fz:core::main()
 				return 127
 			}
 
-			declare -F "fz::${arg}" &>/dev/null || {
+			declare -F fz::"${arg}" &>/dev/null || {
 				printf '[%s]: Found argument "%s" which wasn'\''t expected. Try --help.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${arg}${FZ_COLOR_RESET}"
 				return 1
 			}
@@ -534,24 +535,41 @@ function __fz:core::main()
 
 function __fz:core::theme()
 {
-	# TODO: allow theme change
-	__fz:core::theme::dracula
+	local -r DEFAULT_THEME=Dracula
+	FZ_THEME=${FZ_THEME:-${DEFAULT_THEME}}
+
+	local -A arrTheme=(
+		["Catppuccin Mocha"]=__fz:core::theme::catppuccinMocha
+		["Dracula"]=__fz:core::theme::dracula
+		["Monokai Extended Bright"]=__fz:core::theme::monokaiExtendedBright
+		["Nord"]=__fz:core::theme::nord
+	)
+
+	local fnTheme=${arrTheme[${FZ_THEME}]:-}
+
+	[[ -n ${fnTheme} ]] || {
+		FZ_THEME=${DEFAULT_THEME}
+		fnTheme=${arrTheme[${FZ_THEME}]}
+	}
+
+	"${fnTheme}"                                            # apply theme
 	export FZ_COLOR_RESET=$'\x1b[0m'
 }
 
 function __fz:core::theme::catppuccinMocha()
 {
-    export FZ_COLOR_PRIMARY=$'\x1b[38;2;137;220;235m'       # #89DCEB
-    export FZ_COLOR_SECONDARY=$'\x1b[38;2;203;166;247m'     # #CBA6F7
-    export FZ_COLOR_ACCENT=$'\x1b[38;2;245;194;231m'        # #F5C2E7
-    export FZ_COLOR_EMPHASIS=$'\x1b[38;2;249;226;175m'      # #F9E2AF
-    export FZ_COLOR_STRONG=$'\x1b[38;2;205;214;244m'        # #CDD6F4
-    export FZ_COLOR_MUTED=$'\x1b[38;2;108;112;134m'         # #6C7086
+	export FZ_COLOR_PRIMARY=$'\x1b[38;2;137;220;235m'       # #89DCEB
+	export FZ_COLOR_SECONDARY=$'\x1b[38;2;203;166;247m'     # #CBA6F7
+	export FZ_COLOR_ACCENT=$'\x1b[38;2;245;194;231m'        # #F5C2E7
+	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;249;226;175m'      # #F9E2AF
+	export FZ_COLOR_STRONG=$'\x1b[38;2;205;214;244m'        # #CDD6F4
+	export FZ_COLOR_MUTED=$'\x1b[38;2;108;112;134m'         # #6C7086
 
-    export BAT_THEME="Catppuccin Mocha"
-    export FZF_DEFAULT_OPTS+=" --color=fg:#CDD6F4,hl:#CBA6F7 --color=fg+:#CDD6F4,hl+:#CBA6F7 --color=info:#F9E2AF,prompt:#A6E3A1,pointer:#F5C2E7 --color=marker:#F5C2E7,spinner:#FAB387,header:#6C7086"
-    export RG_COLORS="path:fg:0xcb,0xa6,0xf7:line:fg:0xa6,0xe3,0xa1:column:fg:0xa6,0xe3,0xa1:match:fg:0xf5,0xc2,0xe7"
-    export GREP_COLORS="ms=01;38;2;245;194;231:mc=01;38;2;245;194;231:fn=38;2;137;220;235:ln=38;2;203;166;247:bn=38;2;108;112;134:se=38;2;88;91;112"
+	export FZ_RIPGREP_COLORS="--colors=path:fg:0xcb,0xa6,0xf7 --colors=line:fg:0xa6,0xe3,0xa1 --colors=column:fg:0xa6,0xe3,0xa1 --colors=match:fg:0xf5,0xc2,0xe7"
+
+	export BAT_THEME="Catppuccin Mocha"
+	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#CDD6F4,hl:#CBA6F7 --color=fg+:#CDD6F4,hl+:#CBA6F7 --color=info:#F9E2AF,prompt:#A6E3A1,pointer:#F5C2E7 --color=marker:#F5C2E7,spinner:#FAB387,header:#6C7086"
+	export GREP_COLORS="ms=01;38;2;245;194;231:mc=01;38;2;245;194;231:fn=38;2;137;220;235:ln=38;2;203;166;247:bn=38;2;108;112;134:se=38;2;88;91;112"
 }
 
 function __fz:core::theme::dracula()
@@ -563,10 +581,43 @@ function __fz:core::theme::dracula()
 	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'        # #F8F8F2
 	export FZ_COLOR_MUTED=$'\x1b[38;2;98;114;164m'          # #6272A4
 
+	export FZ_RIPGREP_COLORS="--colors=path:fg:0xbd,0x93,0xf9 --colors=line:fg:0x50,0xfa,0x7b --colors=column:fg:0x50,0xfa,0x7b --colors=match:fg:0xff,0x55,0x55"
+
 	export BAT_THEME=Dracula
-	export FZF_DEFAULT_OPTS+=" --color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
-	export RG_COLORS="path:fg:0xbd,0x93,0xf9:line:fg:0x50,0xfa,0x7b:column:fg:0x50,0xfa,0x7b:match:fg:0xff,0x55,0x55"
+	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
 	export GREP_COLORS="ms=01;38;2;255;121;198:mc=01;38;2;255;121;198:fn=38;2;139;233;253:ln=38;2;189;147;249:bn=38;2;98;114;164:se=38;2;68;71;90"
+}
+
+function __fz:core::theme::monokaiExtendedBright()
+{
+	export FZ_COLOR_PRIMARY=$'\x1b[38;2;102;217;239m'       # #66D9EF
+	export FZ_COLOR_SECONDARY=$'\x1b[38;2;174;129;255m'     # #AE81FF
+	export FZ_COLOR_ACCENT=$'\x1b[38;2;249;38;114m'         # #F92672
+	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;230;219;116m'      # #E6DB74
+	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'        # #F8F8F2
+	export FZ_COLOR_MUTED=$'\x1b[38;2;117;113;94m'          # #75715E
+
+	export FZ_RIPGREP_COLORS="--colors=path:fg:0xae,0x81,0xff --colors=line:fg:0xa6,0xe2,0x2e --colors=column:fg:0xa6,0xe2,0x2e --colors=match:fg:0xf9,0x26,0x72"
+
+	export BAT_THEME="Monokai Extended Bright"
+	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#F8F8F2,hl:#AE81FF --color=fg+:#F8F8F2,hl+:#AE81FF --color=info:#E6DB74,prompt:#A6E22E,pointer:#F92672 --color=marker:#F92672,spinner:#FD971F,header:#75715E"
+	export GREP_COLORS="ms=01;38;2;249;38;114:mc=01;38;2;249;38;114:fn=38;2;102;217;239:ln=38;2;174;129;255:bn=38;2;117;113;94:se=38;2;73;72;62"
+}
+
+function __fz:core::theme::nord()
+{
+	export FZ_COLOR_PRIMARY=$'\x1b[38;2;136;192;208m'       # #88C0D0
+	export FZ_COLOR_SECONDARY=$'\x1b[38;2;129;161;193m'     # #81A1C1
+	export FZ_COLOR_ACCENT=$'\x1b[38;2;180;142;173m'        # #B48EAD
+	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;235;203;139m'      # #EBCB8B
+	export FZ_COLOR_STRONG=$'\x1b[38;2;236;239;244m'        # #ECEFF4
+	export FZ_COLOR_MUTED=$'\x1b[38;2;76;86;106m'           # #4C566A
+
+	export FZ_RIPGREP_COLORS="--colors=path:fg:0x81,0xa1,0xc1 --colors=line:fg:0xa3,0xbe,0x8c --colors=column:fg:0xa3,0xbe,0x8c --colors=match:fg:0xb4,0x8e,0xad"
+
+	export BAT_THEME=Nord
+	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#ECEFF4,hl:#81A1C1 --color=fg+:#ECEFF4,hl+:#81A1C1 --color=info:#EBCB8B,prompt:#A3BE8C,pointer:#B48EAD --color=marker:#B48EAD,spinner:#D08770,header:#4C566A"
+	export GREP_COLORS="ms=01;38;2;180;142;173:mc=01;38;2;180;142;173:fn=38;2;136;192;208:ln=38;2;129;161;193:bn=38;2;76;86;106:se=38;2;59;66;82"
 }
 
 function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
