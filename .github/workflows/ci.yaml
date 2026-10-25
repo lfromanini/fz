@@ -7,6 +7,17 @@ on:
     branches: [main, master]
 
 jobs:
+  bash:
+    name: Bash Syntax-check
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Run Bash syntax-check
+        run: |
+          bash -n bin/fz
+
   shellcheck:
     name: ShellCheck
     runs-on: ubuntu-26.04
