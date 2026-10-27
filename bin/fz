@@ -614,4 +614,12 @@ function __fz:theme::nord()
 	ref=( [PRIMARY]='#88C0D0' [SECONDARY]='#81A1C1' [ACCENT]='#B48EAD' [EMPHASIS]='#EBCB8B' [STRONG]='#ECEFF4' [MUTED]='#4C566A' )
 }
 
+# shellcheck disable=SC2034                                 # SC2034: foo appears unused. Verify it or export it.
+# shellcheck disable=SC2178                                 # SC2178: Variable was used as an array but is now assigned a string.
+function __fz:theme::visualStudioDarkPlus()
+{
+	local -n ref=$1
+	ref=( [PRIMARY]='#569CD6' [SECONDARY]='#9CDCFE' [ACCENT]='#C586C0' [EMPHASIS]='#DCDCAA' [STRONG]='#D4D4D4' [MUTED]='#808080' )
+}
+
 __fz:core::main "$@"

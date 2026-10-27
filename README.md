@@ -176,6 +176,7 @@ Available themes:
 - `Catppuccin Mocha`
 - `Monokai Extended Bright`
 - `Nord`
+- `Visual Studio Dark+`
 
 Set the `FZ_THEME` environment variable to choose a theme:
 
