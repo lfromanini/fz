@@ -199,7 +199,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 
 #### Requirements
 
-- Bash >= 4.2
+- Bash >= 4.3
 - [fzf](https://github.com/junegunn/fzf)
 
 ##### Optional Requirements

@@ -538,11 +538,14 @@ function __fz:core::theme()
 	local -r DEFAULT_THEME=Dracula
 	FZ_THEME=${FZ_THEME:-${DEFAULT_THEME}}
 
+	local -A fzPalette=( )
+	local -A rgb=( )
 	local -A arrTheme=(
 		["Catppuccin Mocha"]=__fz:theme::catppuccinMocha
 		["Dracula"]=__fz:theme::dracula
 		["Monokai Extended Bright"]=__fz:theme::monokaiExtendedBright
 		["Nord"]=__fz:theme::nord
+		["Visual Studio Dark+"]=__fz:theme::visualStudioDarkPlus
 	)
 
 	local fnTheme=${arrTheme[${FZ_THEME}]:-}
@@ -552,74 +555,63 @@ function __fz:core::theme()
 		fnTheme=${arrTheme[${FZ_THEME}]}
 	}
 
-	"${fnTheme}"                                            # apply theme
+	"${fnTheme}" fzPalette                                  # load theme
 	export FZ_COLOR_RESET=$'\x1b[0m'
+
+	# convert the hexadecimal palette to RGB and ANSI
+	local color hex ; for color in PRIMARY SECONDARY ACCENT EMPHASIS STRONG MUTED ; do
+
+		hex=${fzPalette[${color}]#\#}
+		rgb[${color}]="$((16#${hex:0:2}));$((16#${hex:2:2}));$((16#${hex:4:2}))"
+
+		printf -v "FZ_COLOR_${color}" '\e[38;2;%sm' "${rgb[${color}]}"
+		export "FZ_COLOR_${color}"
+	done
+
+	export FZ_RIPGREP_COLORS="--colors=path:fg:${rgb[SECONDARY]//;/,} --colors=line:fg:${rgb[PRIMARY]//;/,} --colors=column:fg:${rgb[PRIMARY]//;/,} --colors=match:fg:${rgb[ACCENT]//;/,}"
+
+	export BAT_THEME=${FZ_THEME}
+	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} \
+		--color=fg:${fzPalette[STRONG]},hl:${fzPalette[SECONDARY]} \
+		--color=fg+:${fzPalette[STRONG]},hl+:${fzPalette[SECONDARY]} \
+		--color=info:${fzPalette[EMPHASIS]},prompt:${fzPalette[PRIMARY]},pointer:${fzPalette[ACCENT]} \
+		--color=marker:${fzPalette[ACCENT]},spinner:${fzPalette[EMPHASIS]},header:${fzPalette[MUTED]} \
+	"
+	export GREP_COLORS="ms=01;38;2;${rgb[ACCENT]}:mc=01;38;2;${rgb[ACCENT]}:fn=38;2;${rgb[PRIMARY]}:ln=38;2;${rgb[SECONDARY]}:bn=38;2;${rgb[MUTED]}:se=38;2;${rgb[MUTED]}"
 }
 
 function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
 
+# shellcheck disable=SC2034                                 # SC2034: foo appears unused. Verify it or export it.
+# shellcheck disable=SC2178                                 # SC2178: Variable was used as an array but is now assigned a string.
 function __fz:theme::catppuccinMocha()
 {
-	export FZ_COLOR_PRIMARY=$'\x1b[38;2;137;220;235m'       # #89DCEB
-	export FZ_COLOR_SECONDARY=$'\x1b[38;2;203;166;247m'     # #CBA6F7
-	export FZ_COLOR_ACCENT=$'\x1b[38;2;245;194;231m'        # #F5C2E7
-	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;249;226;175m'      # #F9E2AF
-	export FZ_COLOR_STRONG=$'\x1b[38;2;205;214;244m'        # #CDD6F4
-	export FZ_COLOR_MUTED=$'\x1b[38;2;108;112;134m'         # #6C7086
-
-	export FZ_RIPGREP_COLORS="--colors=path:fg:0xcb,0xa6,0xf7 --colors=line:fg:0xa6,0xe3,0xa1 --colors=column:fg:0xa6,0xe3,0xa1 --colors=match:fg:0xf5,0xc2,0xe7"
-
-	export BAT_THEME="Catppuccin Mocha"
-	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#CDD6F4,hl:#CBA6F7 --color=fg+:#CDD6F4,hl+:#CBA6F7 --color=info:#F9E2AF,prompt:#A6E3A1,pointer:#F5C2E7 --color=marker:#F5C2E7,spinner:#FAB387,header:#6C7086"
-	export GREP_COLORS="ms=01;38;2;245;194;231:mc=01;38;2;245;194;231:fn=38;2;137;220;235:ln=38;2;203;166;247:bn=38;2;108;112;134:se=38;2;88;91;112"
+	local -n ref=$1
+	ref=( [PRIMARY]='#89DCEB' [SECONDARY]='#CBA6F7' [ACCENT]='#F5C2E7' [EMPHASIS]='#F9E2AF' [STRONG]='#CDD6F4' [MUTED]='#6C7086' )
 }
 
+# shellcheck disable=SC2034                                 # SC2034: foo appears unused. Verify it or export it.
+# shellcheck disable=SC2178                                 # SC2178: Variable was used as an array but is now assigned a string.
 function __fz:theme::dracula()
 {
-	export FZ_COLOR_PRIMARY=$'\x1b[38;2;139;233;253m'       # #8BE9FD
-	export FZ_COLOR_SECONDARY=$'\x1b[38;2;189;147;249m'     # #BD93F9
-	export FZ_COLOR_ACCENT=$'\x1b[38;2;255;121;198m'        # #FF79C6
-	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;241;250;140m'      # #F1FA8C
-	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'        # #F8F8F2
-	export FZ_COLOR_MUTED=$'\x1b[38;2;98;114;164m'          # #6272A4
-
-	export FZ_RIPGREP_COLORS="--colors=path:fg:0xbd,0x93,0xf9 --colors=line:fg:0x50,0xfa,0x7b --colors=column:fg:0x50,0xfa,0x7b --colors=match:fg:0xff,0x55,0x55"
-
-	export BAT_THEME=Dracula
-	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#f8f8f2,hl:#bd93f9 --color=fg+:#f8f8f2,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4"
-	export GREP_COLORS="ms=01;38;2;255;121;198:mc=01;38;2;255;121;198:fn=38;2;139;233;253:ln=38;2;189;147;249:bn=38;2;98;114;164:se=38;2;68;71;90"
+	local -n ref=$1
+	ref=( [PRIMARY]='#8BE9FD' [SECONDARY]='#BD93F9' [ACCENT]='#FF79C6' [EMPHASIS]='#F1FA8C' [STRONG]='#F8F8F2' [MUTED]='#6272A4' )
 }
 
+# shellcheck disable=SC2034                                 # SC2034: foo appears unused. Verify it or export it.
+# shellcheck disable=SC2178                                 # SC2178: Variable was used as an array but is now assigned a string.
 function __fz:theme::monokaiExtendedBright()
 {
-	export FZ_COLOR_PRIMARY=$'\x1b[38;2;102;217;239m'       # #66D9EF
-	export FZ_COLOR_SECONDARY=$'\x1b[38;2;174;129;255m'     # #AE81FF
-	export FZ_COLOR_ACCENT=$'\x1b[38;2;249;38;114m'         # #F92672
-	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;230;219;116m'      # #E6DB74
-	export FZ_COLOR_STRONG=$'\x1b[38;2;248;248;242m'        # #F8F8F2
-	export FZ_COLOR_MUTED=$'\x1b[38;2;117;113;94m'          # #75715E
-
-	export FZ_RIPGREP_COLORS="--colors=path:fg:0xae,0x81,0xff --colors=line:fg:0xa6,0xe2,0x2e --colors=column:fg:0xa6,0xe2,0x2e --colors=match:fg:0xf9,0x26,0x72"
-
-	export BAT_THEME="Monokai Extended Bright"
-	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#F8F8F2,hl:#AE81FF --color=fg+:#F8F8F2,hl+:#AE81FF --color=info:#E6DB74,prompt:#A6E22E,pointer:#F92672 --color=marker:#F92672,spinner:#FD971F,header:#75715E"
-	export GREP_COLORS="ms=01;38;2;249;38;114:mc=01;38;2;249;38;114:fn=38;2;102;217;239:ln=38;2;174;129;255:bn=38;2;117;113;94:se=38;2;73;72;62"
+	local -n ref=$1
+	ref=( [PRIMARY]='#66D9EF' [SECONDARY]='#AE81FF' [ACCENT]='#F92672' [EMPHASIS]='#E6DB74' [STRONG]='#F8F8F2' [MUTED]='#75715E' )
 }
 
+# shellcheck disable=SC2034                                 # SC2034: foo appears unused. Verify it or export it.
+# shellcheck disable=SC2178                                 # SC2178: Variable was used as an array but is now assigned a string.
 function __fz:theme::nord()
 {
-	export FZ_COLOR_PRIMARY=$'\x1b[38;2;136;192;208m'       # #88C0D0
-	export FZ_COLOR_SECONDARY=$'\x1b[38;2;129;161;193m'     # #81A1C1
-	export FZ_COLOR_ACCENT=$'\x1b[38;2;180;142;173m'        # #B48EAD
-	export FZ_COLOR_EMPHASIS=$'\x1b[38;2;235;203;139m'      # #EBCB8B
-	export FZ_COLOR_STRONG=$'\x1b[38;2;236;239;244m'        # #ECEFF4
-	export FZ_COLOR_MUTED=$'\x1b[38;2;76;86;106m'           # #4C566A
-
-	export FZ_RIPGREP_COLORS="--colors=path:fg:0x81,0xa1,0xc1 --colors=line:fg:0xa3,0xbe,0x8c --colors=column:fg:0xa3,0xbe,0x8c --colors=match:fg:0xb4,0x8e,0xad"
-
-	export BAT_THEME=Nord
-	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#ECEFF4,hl:#81A1C1 --color=fg+:#ECEFF4,hl+:#81A1C1 --color=info:#EBCB8B,prompt:#A3BE8C,pointer:#B48EAD --color=marker:#B48EAD,spinner:#D08770,header:#4C566A"
-	export GREP_COLORS="ms=01;38;2;180;142;173:mc=01;38;2;180;142;173:fn=38;2;136;192;208:ln=38;2;129;161;193:bn=38;2;76;86;106:se=38;2;59;66;82"
+	local -n ref=$1
+	ref=( [PRIMARY]='#88C0D0' [SECONDARY]='#81A1C1' [ACCENT]='#B48EAD' [EMPHASIS]='#EBCB8B' [STRONG]='#ECEFF4' [MUTED]='#4C566A' )
 }
 
 __fz:core::main "$@"
