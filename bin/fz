@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.15.0
+readonly VERSION=1.15.1
 
 
 ### commands
@@ -539,10 +539,10 @@ function __fz:core::theme()
 	FZ_THEME=${FZ_THEME:-${DEFAULT_THEME}}
 
 	local -A arrTheme=(
-		["Catppuccin Mocha"]=__fz:core::theme::catppuccinMocha
-		["Dracula"]=__fz:core::theme::dracula
-		["Monokai Extended Bright"]=__fz:core::theme::monokaiExtendedBright
-		["Nord"]=__fz:core::theme::nord
+		["Catppuccin Mocha"]=__fz:theme::catppuccinMocha
+		["Dracula"]=__fz:theme::dracula
+		["Monokai Extended Bright"]=__fz:theme::monokaiExtendedBright
+		["Nord"]=__fz:theme::nord
 	)
 
 	local fnTheme=${arrTheme[${FZ_THEME}]:-}
@@ -556,7 +556,9 @@ function __fz:core::theme()
 	export FZ_COLOR_RESET=$'\x1b[0m'
 }
 
-function __fz:core::theme::catppuccinMocha()
+function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
+
+function __fz:theme::catppuccinMocha()
 {
 	export FZ_COLOR_PRIMARY=$'\x1b[38;2;137;220;235m'       # #89DCEB
 	export FZ_COLOR_SECONDARY=$'\x1b[38;2;203;166;247m'     # #CBA6F7
@@ -572,7 +574,7 @@ function __fz:core::theme::catppuccinMocha()
 	export GREP_COLORS="ms=01;38;2;245;194;231:mc=01;38;2;245;194;231:fn=38;2;137;220;235:ln=38;2;203;166;247:bn=38;2;108;112;134:se=38;2;88;91;112"
 }
 
-function __fz:core::theme::dracula()
+function __fz:theme::dracula()
 {
 	export FZ_COLOR_PRIMARY=$'\x1b[38;2;139;233;253m'       # #8BE9FD
 	export FZ_COLOR_SECONDARY=$'\x1b[38;2;189;147;249m'     # #BD93F9
@@ -588,7 +590,7 @@ function __fz:core::theme::dracula()
 	export GREP_COLORS="ms=01;38;2;255;121;198:mc=01;38;2;255;121;198:fn=38;2;139;233;253:ln=38;2;189;147;249:bn=38;2;98;114;164:se=38;2;68;71;90"
 }
 
-function __fz:core::theme::monokaiExtendedBright()
+function __fz:theme::monokaiExtendedBright()
 {
 	export FZ_COLOR_PRIMARY=$'\x1b[38;2;102;217;239m'       # #66D9EF
 	export FZ_COLOR_SECONDARY=$'\x1b[38;2;174;129;255m'     # #AE81FF
@@ -604,7 +606,7 @@ function __fz:core::theme::monokaiExtendedBright()
 	export GREP_COLORS="ms=01;38;2;249;38;114:mc=01;38;2;249;38;114:fn=38;2;102;217;239:ln=38;2;174;129;255:bn=38;2;117;113;94:se=38;2;73;72;62"
 }
 
-function __fz:core::theme::nord()
+function __fz:theme::nord()
 {
 	export FZ_COLOR_PRIMARY=$'\x1b[38;2;136;192;208m'       # #88C0D0
 	export FZ_COLOR_SECONDARY=$'\x1b[38;2;129;161;193m'     # #81A1C1
@@ -619,7 +621,5 @@ function __fz:core::theme::nord()
 	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:#ECEFF4,hl:#81A1C1 --color=fg+:#ECEFF4,hl+:#81A1C1 --color=info:#EBCB8B,prompt:#A3BE8C,pointer:#B48EAD --color=marker:#B48EAD,spinner:#D08770,header:#4C566A"
 	export GREP_COLORS="ms=01;38;2;180;142;173:mc=01;38;2;180;142;173:fn=38;2;136;192;208:ln=38;2;129;161;193:bn=38;2;76;86;106:se=38;2;59;66;82"
 }
-
-function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
 
 __fz:core::main "$@"
