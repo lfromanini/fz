@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.15.2
+readonly VERSION=1.16.0
 
 
 ### commands
@@ -42,6 +42,192 @@ function __fz::env::fz::help()
 	HEREDOC
 }
 
+### git
+
+command -v git &>/dev/null && function fz::git()
+{
+	local arg="${1:-}"
+	local isArgValid=false
+	local cmds=
+	local cmd=
+
+	git rev-parse --is-inside-work-tree &>/dev/null || {
+		local returnCode=$?
+
+		printf '[%s]: %s: not a git repository (or any parent up to mount point /)\n' \
+			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}"
+
+		return ${returnCode}
+	}
+
+	cmds=$( __fz::git::fz::completion )
+
+	if [[ -n ${arg} ]] ; then
+		shift                                               # remove the command from the argument array
+	else                                                    # no argument provided, offer command selection
+		arg=$( __fz:api::fzf --prompt="git > " --reverse <<< "${cmds}" )
+		[[ -n ${arg} ]] || return 0                         # fzf cancelled
+	fi
+
+	while IFS= read -r cmd ; do
+		[[ ${arg} == "${cmd}" ]] && isArgValid=true && break
+	done <<< "${cmds}"
+
+	[[ ${isArgValid} == true ]] || {
+		printf '[%s]: Invalid %s argument "%s". Supported arguments:\n\n%s\n' \
+			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_STRONG}${arg}${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_MUTED}${cmds}${FZ_COLOR_RESET}"
+
+		return 2
+	}
+
+	__fz::git::"${arg}" "$@"
+}
+
+function __fz::git::add()
+{
+	local cmdPreview="nl -ba"
+	local binBatcat=
+	local fzfPreview=
+	local input=
+	local selection=
+
+	binBatcat=$( __fz:api::command batcat bat )
+	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers"
+
+	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
+	fzfPreview='fp=$( awk '\''{ print substr( $0, 4 ) }'\'' <<< {} ) ; if git ls-files --error-unmatch -- "$fp" &>/dev/null ; then git diff --color=always -- "$fp" | '$( __fz::git::getPager )' ; else	'${cmdPreview}' -- "$fp" ; fi'
+
+	input=$( git status --short --untracked-files=all )
+	selection=$( __fz:api::fzf --multi --preview="${fzfPreview}" --prompt="git add > " --query="$*" --reverse <<< "${input}" )
+
+	[[ -z ${selection} ]] || {
+		while IFS= read -r input ; do
+			input=${input:3}
+			[[ -z ${input} ]] || git add -- "${input}"
+		done <<< "${selection}"
+	}
+}
+
+function __fz::git::branch()
+{
+	local fzfPreview=
+	local input=
+	local selection=
+	local branch=
+
+	fzfPreview='git log --color=always --oneline --graph --decorate {1} | '$( __fz::git::getPager )
+
+	input=$( git branch --all --color --sort=-committerdate | grep -v '^\*' || : )
+	selection=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="git branch > " --query="$*" --reverse <<< "${input}" )
+
+	[[ -n ${selection} ]] || return 0
+
+	branch=${selection#\* }
+	branch=${branch#  }
+	branch=${branch#remotes/}
+
+	case ${selection} in
+		"  (HEAD detached at "*)
+			return 0
+		;;
+
+		"  "*)
+			branch=${branch#remotes/}
+		;;
+	esac
+
+	[[ -n ${branch} ]] || return 0
+
+	case ${selection} in
+		"  remotes/"*)
+			__fz:api::confirm "Create local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branch##*/}${FZ_COLOR_RESET}" || return 0
+			git switch --track -c "${branch##*/}" "${selection#  }"
+		;;
+
+		*)
+			git switch "${branch}"
+		;;
+	esac
+}
+
+function __fz::git::diff()
+{
+	local fzfPreview=
+	local input=
+	local selection=
+
+	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
+	fzfPreview='awk '\''{ print $2 }'\'' <<< {} | xargs git diff | '$( __fz::git::getPager )
+
+	input=$( git diff HEAD --color=always --name-status )
+	selection=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="git diff > " --query="$*" --reverse <<< "${input}" | awk '{ print $ 2}' )
+
+	[[ -z "${selection}" ]] || git diff "${selection}"
+}
+
+function __fz::git::getPager()
+{
+	local pager=
+	pager=$( git config --get core.pager || : )
+
+	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
+	case $( basename -- "${pager%% *}" ) in
+		delta|difft)
+			pager="${pager} --width=\${FZF_PREVIEW_COLUMNS}"
+		;;
+
+		batcat|bat)
+			pager="awk 'NR == 1 { print substr( \$3, 3 ) ; exit }' | xargs ${pager} --color=always --terminal-width=\${FZF_PREVIEW_COLUMNS}"
+			[[ " ${pager} " =~ [[:space:]]--diff([[:space:]]|$) ]] || pager="${pager} --diff"
+		;;
+
+		*)
+			pager="COLUMNS=\${FZF_PREVIEW_COLUMNS} ${pager:-cat}"
+		;;
+	esac
+
+	printf '%s' "${pager}"
+}
+
+function __fz::git::log()
+{
+	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
+	local fzfPreview='git show --color --no-renames --stat "$( awk '\''{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) ; exit }'\'' <<< {} )"'
+	local input=
+	local hash=
+
+	input=$( git log --color=always --format="%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" --graph )
+	hash=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="git log > " --query="$*" --reverse <<< "${input}" | awk '{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) }' )
+
+	[[ -z ${hash} ]] || git show --color "${hash}"
+}
+
+command -v git &>/dev/null && function __fz::git::fz::completion() { printf '%s\n' add branch diff log ; }
+
+command -v git &>/dev/null && function __fz::git::fz::help()
+{
+	cat <<- HEREDOC
+	    git [COMMAND] [QUERY]
+	        Browse Git files, branches, diffs and commits.
+
+	        Commands:
+	            add               select files to stage
+	            branch            browse branches and switch to the selected branch
+	            diff              browse changed files and inspect their diffs
+	            log               browse commits and inspect their details
+
+	        Examples:
+	            ${APP_NAME} git add
+	            ${APP_NAME} git branch
+	            ${APP_NAME} git diff
+	            ${APP_NAME} git log
+	HEREDOC
+}
+
 ### grep
 
 function fz::grep()
@@ -69,9 +255,11 @@ function fz::grep()
 
 			command grep --exclude-dir="/" "" <<< "" &>/dev/null && {
 				local excludeDirs=( )
+				local dir=
+
 				IFS=, read -r -a excludeDirs <<< "${FZ_GREP_EXCLUDE_DIR:-}"
 
-				local dir= ; for dir in "${excludeDirs[@]}" ; do
+				for dir in "${excludeDirs[@]}" ; do
 					args+=( --exclude-dir="${dir}" )
 				done
 			}
@@ -120,13 +308,13 @@ function fz::kill()
 	local selection=
 	local key=
 	local pid=
-	local returnCode=0
 
 	__fz::kill::isSignal "${signal}" || {
-		returnCode=$?
+		local returnCode=$?
 
-		printf '[%s]: Invalid kill signal "%s". Supported signals:\n\n%s\n' \
+		printf '[%s]: Invalid %s signal "%s". Supported signals:\n\n%s\n' \
 			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" \
 			"${FZ_COLOR_STRONG}${signal}${FZ_COLOR_RESET}" \
 			"${FZ_COLOR_MUTED}$( bash -c "builtin kill -l" )${FZ_COLOR_RESET}"
 
@@ -155,7 +343,7 @@ function fz::kill()
 		;;
 
 		*)
-			return ${returnCode} ;;                         # fzf cancelled
+			return 0 ;;                                     # fzf cancelled
 	esac
 
 	__fz::kill::kill "${signal}" "${pid}"

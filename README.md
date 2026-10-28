@@ -46,6 +46,48 @@ Browse environment variables and their values. Press `<CTRL> + <A>` or `<CTRL> +
 fz env
 fz env PATH
 ```
+
+#### git [COMMAND] [QUERY]
+
+Browse Git branches, file changes and commits using interactive filtering and previews.
+
+Run `fz git` without arguments to interactively select a Git command, or specify a command directly.
+
+Available commands:
+
+- `add`: Interactively select files to stage.
+- `branch`: Browse local and remote branches and switch to the selected branch. Remote branches can be checked out as local tracking branches.
+- `diff`: Browse changed files and inspect their diffs.
+- `log`: Browse commits and inspect commit details.
+
+**Requires git and a Git working tree.**
+
+```bash
+# select a Git command interactively
+fz git
+
+# select files to stage
+fz git add
+
+# browse branches and switch to a selected branch
+fz git branch
+
+# browse changed files and inspect diffs
+fz git diff
+
+# browse commits and inspect their details
+fz git log
+```
+
+You can pass a query to filter the results:
+
+```bash
+fz git add README
+fz git branch feature
+fz git diff README
+fz git log initial
+```
+
 #### grep [QUERY]
 
 Recursively search for text in files using [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) or `grep`, with interactive filtering and file previews. Press `<ENTER>` to open the selected file in the editor.
@@ -206,6 +248,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 ##### Optional Requirements
 
 - [bat](https://github.com/sharkdp/bat): enables enhanced previews
+- git: enables the `fz git` command
 - [ripgrep (rg)](https://github.com/BurntSushi/ripgrep): provides faster recursive searches
 - tmux: enables the `fz tmux` command
 
