@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.15.1
+readonly VERSION=1.15.2
 
 
 ### commands
@@ -120,9 +120,20 @@ function fz::kill()
 	local selection=
 	local key=
 	local pid=
+	local returnCode=0
 
-	__fz::kill::isSignal "${signal}" || return $?
-	signal=$( tr '[:lower:]' '[:upper:]' <<< "${signal}" )
+	__fz::kill::isSignal "${signal}" || {
+		returnCode=$?
+
+		printf '[%s]: Invalid kill signal "%s". Supported signals:\n\n%s\n' \
+			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_STRONG}${signal}${FZ_COLOR_RESET}" \
+			"${FZ_COLOR_MUTED}$( bash -c "builtin kill -l" )${FZ_COLOR_RESET}"
+
+		return ${returnCode}
+	}
+
+	signal=${signal^^}
 	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
 
 	fzfHeader=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n[ CTRL + R ] .. refresh process list\n\n'
@@ -144,7 +155,7 @@ function fz::kill()
 		;;
 
 		*)
-			return 0 ;;                                     # fzf cancelled
+			return ${returnCode} ;;                         # fzf cancelled
 	esac
 
 	__fz::kill::kill "${signal}" "${pid}"

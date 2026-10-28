@@ -58,7 +58,7 @@ function teardown() {
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill -NOT_A_SIGNAL
 
 	[[ "${status}" == 1 ]]
-	[[ -z "${output}" ]]
+	[[ "${output}" == *"Invalid kill signal"* ]]
 }
 
 @test "fz kill --SIGTERM ...... # [ enter ] kill with invalid signal" {
@@ -68,7 +68,7 @@ function teardown() {
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill --SIGTERM
 
 	[[ "${status}" == 1 ]]
-	[[ -z "${output}" ]]
+	[[ "${output}" == *"Invalid kill signal"* ]]
 }
 
 @test "fz kill 9 .............. # [ enter ] kill with invalid signal" {
@@ -78,7 +78,7 @@ function teardown() {
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz kill 9
 
 	[[ "${status}" == 1 ]]
-	[[ -z "${output}" ]]
+	[[ "${output}" == *"Invalid kill signal"* ]]
 }
 
 @test "fz kill ................ # [ ctrl-k ] kill with -SIGKILL" {
