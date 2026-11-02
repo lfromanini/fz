@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.16.0
+readonly VERSION=1.16.1
 
 
 ### commands
@@ -101,8 +101,8 @@ function __fz::git::add()
 	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
 	fzfPreview='fp=$( awk '\''{ print substr( $0, 4 ) }'\'' <<< {} ) ; if git ls-files --error-unmatch -- "$fp" &>/dev/null ; then git diff --color=always -- "$fp" | '$( __fz::git::getPager )' ; else	'${cmdPreview}' -- "$fp" ; fi'
 
-	input=$( git status --short --untracked-files=all )
-	selection=$( __fz:api::fzf --multi --preview="${fzfPreview}" --prompt="git add > " --query="$*" --reverse <<< "${input}" )
+	input=$( GIT_CONFIG_PARAMETERS="'color.status=always'" git status --null --short --untracked-files=all | xargs -0 -n 1 )
+	selection=$( __fz:api::fzf --ansi --multi --preview="${fzfPreview}" --prompt="git add > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -z ${selection} ]] || {
 		while IFS= read -r input ; do
