@@ -16,7 +16,7 @@ function teardown() { true ; }
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz grep "text to search"
 
 	[[ "${status}" == 0 ]]
-	[[ "${output}" == "file.txt" ]]
+	[[ "${output}" == "-- file.txt" ]]
 }
 
 @test "fz grep ................ # [ esc ] handles fzf cancellation" {

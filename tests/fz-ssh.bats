@@ -15,7 +15,7 @@ function teardown() { true ; }
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz ssh
 
 	[[ "${status}" == 0 ]]
-	[[ "${output}" == "mocked-ssh myServer" ]]
+	[[ "${output}" == "mocked-ssh myServer --" ]]
 }
 
 @test "fz ssh ................. # [ esc ] handles fzf cancellation" {

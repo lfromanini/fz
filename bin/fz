@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.16.1
+readonly VERSION=1.16.2
 
 
 ### commands
@@ -17,7 +17,6 @@ function fz::env()
 {
 	local input=
 	local selection=
-	local var=
 
 	input=$(
 		env | sort | awk -F= -v c1="${FZ_COLOR_PRIMARY}" -v c2="${FZ_COLOR_SECONDARY}" -v cr="${FZ_COLOR_RESET}" \
@@ -26,7 +25,7 @@ function fz::env()
 
 	selection=$( __fz:api::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
 
-	while IFS= read -r var ; do
+	local var= ; while IFS= read -r var ; do
 		[[ -z ${var} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${var}" "${!var}"
 	done <<< "${selection}"
 }
@@ -46,10 +45,9 @@ function __fz::env::fz::help()
 
 command -v git &>/dev/null && function fz::git()
 {
-	local arg="${1:-}"
+	local arg=${1:-}
 	local isArgValid=false
 	local cmds=
-	local cmd=
 
 	git rev-parse --is-inside-work-tree &>/dev/null || {
 		local returnCode=$?
@@ -63,14 +61,14 @@ command -v git &>/dev/null && function fz::git()
 
 	cmds=$( __fz::git::fz::completion )
 
-	if [[ -n ${arg} ]] ; then
+	if [[ -n ${arg} ]] ; then                               # argument found
 		shift                                               # remove the command from the argument array
 	else                                                    # no argument provided, offer command selection
 		arg=$( __fz:api::fzf --prompt="git > " --reverse <<< "${cmds}" )
 		[[ -n ${arg} ]] || return 0                         # fzf cancelled
 	fi
 
-	while IFS= read -r cmd ; do
+	local cmd= ; while IFS= read -r cmd ; do
 		[[ ${arg} == "${cmd}" ]] && isArgValid=true && break
 	done <<< "${cmds}"
 
@@ -99,7 +97,11 @@ function __fz::git::add()
 	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers"
 
 	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
-	fzfPreview='fp=$( awk '\''{ print substr( $0, 4 ) }'\'' <<< {} ) ; if git ls-files --error-unmatch -- "$fp" &>/dev/null ; then git diff --color=always -- "$fp" | '$( __fz::git::getPager )' ; else	'${cmdPreview}' -- "$fp" ; fi'
+	fzfPreview='
+		fp=$( awk '\''{ print substr( $0, 4 ) }'\'' <<< {} )
+		[[ -n $fp ]] || return
+		if git ls-files --error-unmatch -- "$fp" &>/dev/null ; then git diff --color=always -- "$fp" | '$( __fz::git::getPager )' ; else '${cmdPreview}' -- "$fp" ; fi
+	'
 
 	input=$( GIT_CONFIG_PARAMETERS="'color.status=always'" git status --null --short --untracked-files=all | xargs -0 -n 1 )
 	selection=$( __fz:api::fzf --ansi --multi --preview="${fzfPreview}" --prompt="git add > " --query="$*" --reverse <<< "${input}" )
@@ -119,16 +121,16 @@ function __fz::git::branch()
 	local selection=
 	local branch=
 
-	fzfPreview='git log --color=always --oneline --graph --decorate {1} | '$( __fz::git::getPager )
+	fzfPreview="git log --color=always --oneline --graph --decorate {1} | $( __fz::git::getPager )"
 
 	input=$( git branch --all --color --sort=-committerdate | grep -v '^\*' || : )
 	selection=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="git branch > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -n ${selection} ]] || return 0
 
-	branch=${selection#\* }
-	branch=${branch#  }
-	branch=${branch#remotes/}
+	branch=${selection#\* }                                 # remove the leading asterisk and space, if present
+	branch=${branch#  }                                     # remove the leading two spaces, if present
+	branch=${branch#remotes/}                               # remove the "remotes/" prefix, if present
 
 	case ${selection} in
 		"  (HEAD detached at "*)
@@ -145,11 +147,11 @@ function __fz::git::branch()
 	case ${selection} in
 		"  remotes/"*)
 			__fz:api::confirm "Create local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branch##*/}${FZ_COLOR_RESET}" || return 0
-			git switch --track -c "${branch##*/}" "${selection#  }"
+			git switch --track -c -- "${branch##*/}" "${selection#  }"
 		;;
 
 		*)
-			git switch "${branch}"
+			git switch -- "${branch}"
 		;;
 	esac
 }
@@ -161,12 +163,12 @@ function __fz::git::diff()
 	local selection=
 
 	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
-	fzfPreview='awk '\''{ print $2 }'\'' <<< {} | xargs git diff | '$( __fz::git::getPager )
+	fzfPreview="[[ -z {2} ]] || git diff -- {2} | $( __fz::git::getPager )"
 
 	input=$( git diff HEAD --color=always --name-status )
 	selection=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="git diff > " --query="$*" --reverse <<< "${input}" | awk '{ print $ 2}' )
 
-	[[ -z "${selection}" ]] || git diff "${selection}"
+	[[ -z "${selection}" ]] || git diff -- "${selection}"
 }
 
 function __fz::git::getPager()
@@ -175,7 +177,7 @@ function __fz::git::getPager()
 	pager=$( git config --get core.pager || : )
 
 	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
-	case $( basename -- "${pager%% *}" ) in
+	case $( basename -- "${pager%% *}" ) in                 # extract the executable name from the pager command
 		delta|difft)
 			pager="${pager} --width=\${FZF_PREVIEW_COLUMNS}"
 		;;
@@ -245,21 +247,20 @@ function fz::grep()
 
 	case ${binSearcher} in
 		*/rg)
-			[[ -n ${FZ_GREP_EXCLUDE_DIR:-} ]] && args=( --glob="!{${FZ_GREP_EXCLUDE_DIR}}/" )
+			[[ -n ${FZ_GREP_EXCLUDE_DIR:-} ]] && args+=( --glob="!{${FZ_GREP_EXCLUDE_DIR}}/" )
 			# shellcheck disable=SC2206                     # SC2206: Quote to prevent word splitting/globbing, or split robustly with mapfile or `read -a`.
 			args+=( --color=always ${FZ_RIPGREP_COLORS} --hidden --ignore-case --line-number --with-filename "$*" . )
 		;;
 
 		*/grep)
-			command grep --color=always "" <<< "" &>/dev/null && args=( --color=always )
+			command grep --color=always "" <<< "" &>/dev/null && args+=( --color=always )
 
 			command grep --exclude-dir="/" "" <<< "" &>/dev/null && {
 				local excludeDirs=( )
-				local dir=
 
 				IFS=, read -r -a excludeDirs <<< "${FZ_GREP_EXCLUDE_DIR:-}"
 
-				for dir in "${excludeDirs[@]}" ; do
+				local dir= ; for dir in "${excludeDirs[@]}" ; do
 					args+=( --exclude-dir="${dir}" )
 				done
 			}
@@ -277,7 +278,7 @@ function fz::grep()
 	input=$( ${binSearcher} "${args[@]}" )
 	fp=$( __fz:api::fzf --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${binSearcher##*/} > " --reverse <<< "${input}" | cut -d: -f1 )
 
-	[[ -z ${fp} ]] || ${EDITOR:-echo} "${fp}"
+	[[ -z ${fp} ]] || ${EDITOR:-echo} -- "${fp}"
 }
 
 function __fz::grep::defaultExcludeDir() { printf '%s' ".git,.venv,__pycache__,node_modules" ; }
@@ -304,7 +305,7 @@ function fz::kill()
 {
 	local signal=${1:-"-SIGTERM"}
 	local cmdProcs="ps aux"
-	local fzfHeader=
+	local fzfHeader=$'\n[ ENTER ] ..... kill ${signal}\n[ CTRL + K ] .. force -SIGKILL\n[ CTRL + R ] .. refresh process list\n\n'
 	local selection=
 	local key=
 	local pid=
@@ -323,8 +324,6 @@ function fz::kill()
 
 	signal=${signal^^}
 	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
-
-	fzfHeader=$'\n[ ENTER ] ..... kill '"${signal}"$'\n[ CTRL + K ] .. force -SIGKILL\n[ CTRL + R ] .. refresh process list\n\n'
 
 	selection=$(
 		__fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect="enter,ctrl-k" --header="${fzfHeader}" --header-lines=1 --prompt="kill ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
@@ -425,7 +424,7 @@ function fz::ssh()
 
 	IFS= read -r -d '' fzfFilter <<- 'AWK' || :             # use a heredoc to improve readability when building the awk preview command
 	awk -v c1="\${FZ_COLOR_MUTED}" -v cr="\${FZ_COLOR_RESET}" 'BEGIN {
-		names[\"host\"] = \"Host\"                  # convert directive names to PascalCase
+		names[\"host\"] = \"Host\"                          # convert directive names to PascalCase
 		names[\"user\"] = \"User\"
 		names[\"hostname\"] = \"HostName\"
 		names[\"port\"] = \"Port\"
@@ -460,23 +459,24 @@ function fz::ssh()
 	local fzfPreview="ssh -G {} 2>/dev/null | ${fzfFilter}"
 	local sshServer=
 
-	local arg=
-	local sshArgs=( )
-	local remoteCommand=( )
-	local isRemoteCommand=false
-
-	for arg in "$@" ; do
-		[[ ${arg} == -- ]] && isRemoteCommand=true && continue
-		[[ ${isRemoteCommand} == true ]] && remoteCommand+=( "${arg}" ) || sshArgs+=( "${arg}" )
-	done
-
 	sshServer=$( bash --noprofile --norc -ic '
 		source <( __fz:api::fzf --bash )
 		__fzf_list_hosts | __fz:api::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="ssh > " --reverse --select-1
 	' 2>/dev/null )
 
-	# shellcheck disable=SC2029                             # SC2029: Note that, unescaped, this expands on the client side.
-	[[ -z ${sshServer} ]] || ssh "${sshArgs[@]}" "${sshServer}" "${remoteCommand[@]}"
+	[[ -z ${sshServer} ]] || {
+
+		local sshArgs=( )
+		local remoteCommand=( )
+		local isRemoteCommand=false
+
+		local arg= ; for arg in "$@" ; do
+			[[ ${arg} == -- ]] && isRemoteCommand=true && continue
+			[[ ${isRemoteCommand} == true ]] && remoteCommand+=( "${arg}" ) || sshArgs+=( "${arg}" )
+		done
+
+		ssh "${sshArgs[@]}" "${sshServer}" -- "${remoteCommand[@]}"
+	}
 }
 
 function __fz::ssh::fz::help()
@@ -552,7 +552,7 @@ function __fz:api::command()
 
 	local cmdSearch= ; for cmdSearch in "$@" ; do
 		unalias "${cmdSearch}" &>/dev/null || :
-		unset -f "${cmdSearch}" &>/dev/null || :
+		unset -f "${cmdSearch}"
 
 		cmdSearch=$( command -v "${cmdSearch}" || : )
 		[[ -n ${cmdSearch} ]] && cmd=${cmdSearch} && break
@@ -648,8 +648,8 @@ function __fz:core::completion::zsh()
 
 function __fz:core::help()
 {
-	local cmd=
-	local helpFunction=
+	local cmds=
+	cmds=$( __fz:core::commands )
 
 	__fz:core::version
 
@@ -663,14 +663,16 @@ function __fz:core::help()
 
 	Commands:
 
-	$( __fz:core::commands | awk '{ print "    " $0 }' )
+	$( awk '{ print "    " $0 }' <<< "${cmds}" )
 
 	Command arguments:
 	$(
-		while IFS= read -r cmd ; do
+		local helpFunction=
+
+		local cmd= ; while IFS= read -r cmd ; do
 			helpFunction=__fz::"${cmd}"::fz::help
 			declare -F "${helpFunction}" &>/dev/null && printf '\n' && "${helpFunction}"
-		done < <( __fz:core::commands )
+		done <<< "${cmds}"
 	)
 
 	Options:
@@ -683,7 +685,6 @@ function __fz:core::help()
 function __fz:core::main()
 {
 	local arg=${1:-"--help"}
-	local binBatcat=
 
 	case ${arg} in
 		--bash-completion)
@@ -693,6 +694,7 @@ function __fz:core::main()
 			__fz:core::completion::zsh ;;
 
 		-h|--help)
+			local binBatcat=
 			binBatcat=$( __fz:api::command batcat bat )
 
 			if [[ -n ${binBatcat} ]] ; then
