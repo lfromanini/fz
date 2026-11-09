@@ -10,7 +10,7 @@ function teardown() { true ; }
 
 @test "fz env" {
 
-	FZF_MOCK_OUTPUT="HOME=${HOME}"
+	FZF_MOCK_OUTPUT=HOME
 
 	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz env
 

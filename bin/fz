@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.16.3
+readonly VERSION=1.16.4
 
 
 ### commands
@@ -15,19 +15,26 @@ readonly VERSION=1.16.3
 
 function fz::env()
 {
+	local idx=
 	local input=
 	local selection=
 
-	input=$(
-		env | sort | awk -F= -v c1="${FZ_COLOR_PRIMARY}" -v c2="${FZ_COLOR_SECONDARY}" -v cr="${FZ_COLOR_RESET}" \
-			'{ value = substr( $0, length( $1 ) + 2 ) ; gsub( /\033/, "\\E", value ) ; printf "%s%s%s=%s%s\n", c1, $1, c2, cr, value }'
-	)
+	input=$( for idx in "${!__FZ_ENV_SNAPSHOT[@]}" ; do printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${__FZ_ENV_SNAPSHOT[${idx}]}" ; done | sort )
+	selection=$( __fz:api::fzf --accept-nth=1 --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --delimiter="=" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" )
 
-	selection=$( __fz:api::fzf --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --multi --prompt="env > " --query="$*" --reverse --select-1 <<< "${input}" | cut -d= -f1 )
-
-	local var= ; while IFS= read -r var ; do
-		[[ -z ${var} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${var}" "${!var}"
+	while IFS= read -r idx ; do
+		[[ -z ${idx} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${!idx}"
 	done <<< "${selection}"
+}
+
+function __fz::env::fz::hook::onInit()
+{
+	declare -gA __FZ_ENV_SNAPSHOT=( )
+	local idx=
+
+	while IFS= read -r idx ; do
+		__FZ_ENV_SNAPSHOT["${idx}"]=${!idx}
+	done < <( compgen -e )
 }
 
 function __fz::env::fz::help()
@@ -278,9 +285,9 @@ function fz::grep()
 	[[ -n ${binBatcat} ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers {1}"
 
 	input=$( ${binSearcher} "${args[@]}" )
-	fp=$( __fz:api::fzf --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${binSearcher##*/} > " --reverse <<< "${input}" | cut -d: -f1 )
+	fp=$( __fz:api::fzf --accept-nth=1 --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${binSearcher##*/} > " --reverse <<< "${input}" )
 
-	[[ -z ${fp} ]] || ${EDITOR:-echo} -- "${fp}"
+	if [[ -z ${fp} ]] ; then return 0 ; elif [[ -n ${EDITOR:-} ]] ; then ${EDITOR} -- "${fp}" ; else printf '%s\n' "${fp}" ; fi
 }
 
 function __fz::grep::defaultExcludeDir() { printf '%s' ".git,.venv,__pycache__,node_modules" ; }
@@ -707,6 +714,14 @@ function __fz:core::help()
 	HEREDOC
 }
 
+function __fz:core::hook()
+{
+	local hook=$1
+	local cmd=$2
+
+	declare -F __fz::"${cmd}"::fz::hook::"${hook}" &>/dev/null && __fz::"${cmd}"::fz::hook::"${hook}" || :
+}
+
 function __fz:core::main()
 {
 	local arg=${1:-"--help"}
@@ -739,6 +754,9 @@ function __fz:core::main()
 		;;
 
 		*)
+			local returnCode=
+
+			__fz:core::hook onInit "${arg}"
 			__fz:core::theme
 
 			command -v fzf &>/dev/null || {
@@ -751,8 +769,14 @@ function __fz:core::main()
 				return 1
 			}
 
+			__fz:core::hook onStart "${arg}"
+
 			shift
 			fz::"${arg}" "$@"
+			returnCode=$?
+
+			__fz:core::hook onExit "${arg}"
+			return ${returnCode}
 		;;
 	esac
 
@@ -762,7 +786,6 @@ function __fz:core::main()
 function __fz:core::theme()
 {
 	local -r DEFAULT_THEME=Dracula
-	FZ_THEME=${FZ_THEME:-${DEFAULT_THEME}}
 
 	local -A fzPalette=( )
 	local -A rgb=( )
@@ -774,11 +797,12 @@ function __fz:core::theme()
 		["Visual Studio Dark+"]=__fz:theme::visualStudioDarkPlus
 	)
 
-	local fnTheme=${arrTheme[${FZ_THEME}]:-}
+	local fzThemeName=${FZ_THEME:-${DEFAULT_THEME}}
+	local fnTheme=${arrTheme[${fzThemeName}]:-}
 
 	[[ -n ${fnTheme} ]] || {
-		FZ_THEME=${DEFAULT_THEME}
-		fnTheme=${arrTheme[${FZ_THEME}]}
+		fzThemeName=${DEFAULT_THEME}
+		fnTheme=${arrTheme[${fzThemeName}]}
 	}
 
 	"${fnTheme}" fzPalette                                  # load theme
@@ -796,7 +820,7 @@ function __fz:core::theme()
 
 	export FZ_RIPGREP_COLORS="--colors=path:fg:${rgb[SECONDARY]//;/,} --colors=line:fg:${rgb[PRIMARY]//;/,} --colors=column:fg:${rgb[PRIMARY]//;/,} --colors=match:fg:${rgb[ACCENT]//;/,}"
 
-	export BAT_THEME=${FZ_THEME}
+	export BAT_THEME=${fzThemeName}
 	export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} \
 		--color=fg:${fzPalette[STRONG]},hl:${fzPalette[SECONDARY]} \
 		--color=fg+:${fzPalette[STRONG]},hl+:${fzPalette[SECONDARY]} \
