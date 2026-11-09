@@ -16,6 +16,52 @@ Contributions are welcome. Please follow the conventions below when adding or mo
 - Keep `fz::*` command functions in alphabetical order.
 - Keep `__fz::*` support functions in alphabetical order within their respective scope.
 
+### Hooks
+
+Commands can define optional lifecycle hooks that are automatically invoked by the core.
+
+Hooks must be defined in the command's private namespace using the following naming convention:
+
+```bash
+function __fz::<command>::fz::hook::<hook>()
+{
+	...
+}
+```
+
+The following hooks are currently supported:
+
+| Hook      | Description                                                                            |
+|-----------|----------------------------------------------------------------------------------------|
+| `onInit`  | Executed during initialization, before dependency and command validation               |
+| `onStart` | Executed after dependency and command validation, immediately before command execution |
+| `onExit`  | Executed after command execution, regardless of its exit status                        |
+
+Hooks are optional. The core checks whether a hook is defined before invoking it, so commands do not need to implement every hook.
+
+For example, a command can define hooks to initialize resources, perform setup and clean up after execution:
+
+```bash
+function __fz::<command>::fz::hook::onInit()
+{
+	...
+}
+
+function __fz::<command>::fz::hook::onStart()
+{
+	...
+}
+
+function __fz::<command>::fz::hook::onExit()
+{
+	...
+}
+```
+
+Hooks receive no arguments. The command name is used internally by the core to locate the corresponding hook.
+
+Keep hooks focused on lifecycle-related tasks and avoid placing command-specific functionality in the core hook dispatcher.
+
 ### Code Style
 
 - Use the existing indentation, spacing and formatting conventions.
