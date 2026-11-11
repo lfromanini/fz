@@ -1,28 +1,21 @@
 #!/usr/bin/env bats
 
-# shellcheck disable=SC2034     # SC2034: foo appears unused. Verify it or export it.
+function setup() { load "support/common.bash" ; }
 
-function setup() {
-	load "support/common.bash"
-}
+@test "fz env ................. # valid environment variable" {
 
-function teardown() { true ; }
+	setFzfMock env HOME
+	run bash "${FZ_BIN}" env
 
-@test "fz env" {
-
-	FZF_MOCK_OUTPUT=HOME
-
-	PATH="${PATH_MOCKS}" run bash "${PATH_BIN}"/fz env
-
-	[[ "${status}" == 0 ]]
-	[[ "$( stripColors "${output}" )" == "HOME=${HOME}" ]]
+	[[ ${status} == 0 ]]
+	[[ $( stripColors "${output}" ) == "HOME=${HOME}" ]]
 }
 
 @test "fz env ................. # [ esc ] handles fzf cancellation" {
 
-	mockFzfEscape
-	run bash "${PATH_BIN}"/fz env
+	setFzfMock env
+	run bash "${FZ_BIN}" env
 
-	[[ "${status}" == 0 ]]
-	[[ -z "${output}" ]]
+	[[ ${status} == 0 ]]
+	[[ -z ${output} ]]
 }

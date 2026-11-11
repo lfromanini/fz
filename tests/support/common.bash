@@ -1,29 +1,44 @@
 #!/usr/bin/env bash
 
-export PATH_BIN="${BATS_TEST_DIRNAME}"/../bin/
-export PATH_MOCKS_DIR="${BATS_TEST_DIRNAME}"/../tests/mocks/
+export FZ_BIN="${BATS_TEST_DIRNAME}/../bin/fz"
+
+export PATH_MOCKS_DIR="${BATS_TEST_DIRNAME}/../tests/mocks/"
 export PATH_MOCKS="${PATH_MOCKS_DIR}:${PATH}"
 
-export FZF_MOCK_OUTPUT=""
+function setFzfMock()
+{
+	# shellcheck disable=SC2329     # SC2329: This function is never invoked. Check usage (or ignored if invoked indirectly).
+	function fzf()
+	{
+		local output=
+
+		[[ ${1:-} == "--bash" ]] && {
+			printf '%s\n' '__fzf_list_hosts() { printf "myServer" ; }'
+			return 0
+		}
+
+		IFS= read -d $'\t' -r output < "${FZF_MOCK_OUTPUT_FILE}" || :
+		perl -0777 -i -pe 's/\A[^\t]*\t//' "${FZF_MOCK_OUTPUT_FILE}"
+
+		printf '%s' "${output}"
+	}
+
+	export -f fzf
+
+	export FZF_MOCK_OUTPUT=( "$@" )
+	export FZF_MOCK_OUTPUT_FILE=
+
+	FZF_MOCK_OUTPUT_FILE=$( mktemp )
+
+	printf '%s\t' "${FZF_MOCK_OUTPUT[@]}" > "${FZF_MOCK_OUTPUT_FILE}"
+}
 
 function stripColors()
 {
 	printf '%s' "$*" | sed $'s/\033\\[[0-9;]*m//g'
 }
 
-# shellcheck disable=SC2329     # SC2329: This function is never invoked. Check usage (or ignored if invoked indirectly).
-function mockFzfEscape()
+function teardown()
 {
-	function fzf()
-	{
-		if [[ "$1" == "--bash" ]] ; then
-			"${PATH_MOCKS_DIR}"/fzf --bash
-			return $?
-		fi
-
-		cat > /dev/null         # consume stdin to prevent SIGPIPE
-		return 130
-	}
-
-	export -f fzf
+	[[ -z "${FZF_MOCK_OUTPUT_FILE:-}" ]] || rm -f "${FZF_MOCK_OUTPUT_FILE}"
 }
