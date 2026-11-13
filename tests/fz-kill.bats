@@ -4,8 +4,13 @@ function setup() { load "support/common.bash" ; }
 
 function spawnTestProcess()
 {
+	local pid=
+
 	sleep 10 &
-	TEST_PID=$!
+	pid=$!
+
+	TARGET_PROCESS_ENTER="enter"$'\n'"user ${pid} 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
+	TARGET_PROCESS_CTRL_K="ctrl-k"$'\n'"user ${pid} 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
 }
 
 @test "fz kill ................ # [ esc ] handles fzf cancellation" {
@@ -21,7 +26,7 @@ function spawnTestProcess()
 
 	spawnTestProcess
 
-	setFzfMock kill $'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	setFzfMock kill "${TARGET_PROCESS_ENTER}"
 	run bash "${FZ_BIN}" kill
 
 	[[ ${status} == 0 ]]
@@ -32,7 +37,7 @@ function spawnTestProcess()
 
 	spawnTestProcess
 
-	setFzfMock kill $'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	setFzfMock kill "${TARGET_PROCESS_ENTER}"
 	run bash "${FZ_BIN}" kill -SIGKILL
 
 	[[ ${status} == 0 ]]
@@ -43,7 +48,7 @@ function spawnTestProcess()
 
 	spawnTestProcess
 
-	setFzfMock kill $'enter\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	setFzfMock kill "${TARGET_PROCESS_ENTER}"
 	run bash "${FZ_BIN}" kill -9
 
 	[[ ${status} == 0 ]]
@@ -52,7 +57,7 @@ function spawnTestProcess()
 
 @test "fz kill -NOT_A_SIGNAL .. # [ enter ] kill with invalid signal" {
 
-	setFzfMock kill $'enter\nuser 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	setFzfMock kill
 	run bash "${FZ_BIN}" kill -NOT_A_SIGNAL
 
 	[[ ${status} == 1 ]]
@@ -61,7 +66,7 @@ function spawnTestProcess()
 
 @test "fz kill --SIGTERM ...... # [ enter ] kill with invalid signal" {
 
-	setFzfMock kill $'enter\nuser 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	setFzfMock kill
 	run bash "${FZ_BIN}" kill --SIGTERM
 
 	[[ ${status} == 1 ]]
@@ -70,7 +75,7 @@ function spawnTestProcess()
 
 @test "fz kill 9 .............. # [ enter ] kill with invalid signal" {
 
-	setFzfMock kill $'enter\nuser 12345 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash'
+	setFzfMock kill
 	run bash "${FZ_BIN}" kill 9
 
 	[[ ${status} == 1 ]]
@@ -81,7 +86,7 @@ function spawnTestProcess()
 
 	spawnTestProcess
 
-	setFzfMock kill $'ctrl-k\nuser '"${TEST_PID}"' 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash' Yes
+	setFzfMock kill "${TARGET_PROCESS_CTRL_K}" Yes
 	run bash "${FZ_BIN}" kill
 
 	[[ ${status} == 0 ]]
