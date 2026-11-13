@@ -51,6 +51,7 @@ jobs:
           sudo apt-get install --no-install-recommends -y man-db
           sudo apt-get download man-db
           sudo dpkg-deb -x man-db_*.deb /
+          sudo rm man-db_*.deb
 
       - name: Run BATS tests
         run: |
