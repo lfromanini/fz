@@ -4,18 +4,18 @@ function setup()
 {
 	load "support/common.bash"
 
-	GIT_WORK_TREE="${BATS_TEST_TMPDIR}/worktree"
+	local gitWorktree="${BATS_TEST_TMPDIR}/worktree"
 
-	mkdir -p "${GIT_WORK_TREE}"
-	git -C "${GIT_WORK_TREE}" init -q
-	git -C "${GIT_WORK_TREE}" config user.name "Test User"
-	git -C "${GIT_WORK_TREE}" config user.email "test@example.com"
+	mkdir -p -- "${gitWorktree}"
+	cd -- "${gitWorktree}" || return $?
 
-	printf 'initial content\n' > "${GIT_WORK_TREE}/file.txt"
-	git -C "${GIT_WORK_TREE}" add file.txt
-	git -C "${GIT_WORK_TREE}" commit -qm "Initial commit"
+	git init -q
+	git config user.name "Test User"
+	git config user.email "test@example.com"
 
-	cd "${GIT_WORK_TREE}" || return $?
+	printf 'initial content\n' > file.txt
+	git add . file.txt
+	git commit -qm "Initial commit"
 }
 
 @test "fz git ................. # git not installed" {
