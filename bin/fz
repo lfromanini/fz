@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.16.5
+readonly VERSION=1.16.6
 
 
 ### commands
@@ -140,7 +140,7 @@ function __fz::git::diff()
 	fzfPreview="[[ -z {2} ]] || git diff -- {2} | $( __fz::git::getPager )"
 
 	input=$( git diff HEAD --color=always --name-status )
-	selection=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="git diff > " --query="$*" --reverse <<< "${input}" | awk '{ print $ 2}' )
+	selection=$( __fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --prompt="git diff > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -z "${selection}" ]] || git diff -- "${selection}"
 }
