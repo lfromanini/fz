@@ -4,8 +4,7 @@ function setup()
 {
 	load "support/common.bash"
 
-	GIT_DIR=$( mktemp -d )
-	GIT_WORK_TREE="${GIT_DIR}/worktree"
+	GIT_WORK_TREE="${BATS_TEST_TMPDIR}/worktree"
 
 	mkdir -p "${GIT_WORK_TREE}"
 	git -C "${GIT_WORK_TREE}" init -q
@@ -17,12 +16,6 @@ function setup()
 	git -C "${GIT_WORK_TREE}" commit -qm "Initial commit"
 
 	cd "${GIT_WORK_TREE}" || return $?
-}
-
-function teardown()
-{
-	rm -f "${FZF_MOCK_OUTPUT_FILE}"
-	rm -fR "${GIT_DIR}"
 }
 
 @test "fz git ................. # git not installed" {
@@ -53,7 +46,7 @@ function teardown()
 
 @test "fz git ................. # [ git ] requires a git working tree" {
 
-	cd "${BATS_TEST_TMPDIR}" || return $?
+	cd "${BATS_TEST_TMPDIR}"
 	run bash "${FZ_BIN}" git
 
 	[[ ${status} != 0 ]]
