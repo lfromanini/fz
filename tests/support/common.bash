@@ -9,7 +9,7 @@ function fzf()
 {
 	local output=
 
-	[[ ${1:-} == "--bash" ]] && {
+	[[ ${1:-} == --bash ]] && {
 		printf '%s\n' '__fzf_list_hosts() { printf "myServer" ; }'
 		return 0
 	}
