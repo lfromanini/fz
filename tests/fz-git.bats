@@ -76,7 +76,7 @@ function setup()
 
 	printf 'modified content\n' > file.txt
 
-	setFzfMock git diff "M file.txt"
+	setFzfMock git diff file.txt
 	run bash "${FZ_BIN}" git diff
 
 	[[ ${status} == 0 ]]
