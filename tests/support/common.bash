@@ -24,12 +24,10 @@ export -f fzf
 
 function setFzfMock()
 {
-	export FZF_MOCK_OUTPUT=( "$@" )
 	export FZF_MOCK_OUTPUT_FILE=
-
 	FZF_MOCK_OUTPUT_FILE=$( mktemp "${BATS_TEST_TMPDIR}/bats.XXXXXX" )
 
-	printf '%s\t' "${FZF_MOCK_OUTPUT[@]}" > "${FZF_MOCK_OUTPUT_FILE}"
+	printf '%s\t' "$@" > "${FZF_MOCK_OUTPUT_FILE}"
 }
 
 function stripColors()
