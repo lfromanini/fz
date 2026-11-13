@@ -38,10 +38,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install BATS and other dependencies
+      - name: Update APT package index
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats bsdextrautils fzf git tmux zsh
+
+      - name: Install BATS and other dependencies
+        run: |
+          sudo apt-get install --no-install-recommends -y bats bsdextrautils fzf git tmux zsh
+
+      - name: Install man-db and restore manpages
+        run: |
+          sudo apt-get install --no-install-recommends -y man-db
+          sudo apt-get download man-db
+          sudo dpkg-deb -x man-db_*.deb /
 
       - name: Run BATS tests
         run: |

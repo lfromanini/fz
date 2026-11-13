@@ -4,11 +4,11 @@ function setup() { load "support/common.bash" ; }
 
 @test "fz man ................. # valid manual page" {
 
-	setFzfMock man "ls (1)               - list directory contents"
-	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" man
+	setFzfMock man "man (1)"
+	MAN_POSIXLY_CORRECT=1 MANPAGER=cat run bash "${FZ_BIN}" man
 
 	[[ ${status} == 0 ]]
-	[[ ${output} == "mocked-man 1 ls" ]]
+	[[ ${output} == "MAN(1)"* ]]
 }
 
 @test "fz man ................. # [ esc ] handles fzf cancellation" {
