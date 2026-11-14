@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.16.6
+readonly VERSION=1.16.7
 
 
 ### commands
@@ -640,7 +640,50 @@ function __fz:core::completion::zsh()
 	HEREDOC
 }
 
+function __fz:core::dispatch()
+{
+	local arg=
+	local returnCode=0
+
+	arg=$( __fz:api::fzf --prompt="fz > " --query="${1:-}" --reverse --select-1 <<< "$( __fz:core::commands )" )
+
+	[[ -n ${arg} ]] && {
+
+		[[ -n ${1:-} ]] && shift
+
+		__fz:core::hook onInit "${arg}"
+		__fz:core::theme
+
+		declare -F fz::"${arg}" &>/dev/null || {
+			printf '[%s]: Found argument "%s" which wasn'\''t expected. Try --help.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${arg}${FZ_COLOR_RESET}"
+			return 1
+		}
+
+		__fz:core::hook onStart "${arg}"
+
+		fz::"${arg}" "$@"
+		returnCode=$?
+
+		__fz:core::hook onExit "${arg}"
+	}
+
+	return ${returnCode}
+}
+
 function __fz:core::help()
+{
+	local binBatcat=
+	binBatcat=$( __fz:api::command batcat bat )
+
+	if [[ -n ${binBatcat} ]] ; then
+		__fz:core::theme
+		__fz:core::help::text 2>&1 | ${binBatcat} --language=help --paging=never --style=plain
+	else
+		__fz:core::help::text
+	fi
+}
+
+function __fz:core::help::text()
 {
 	local cmds=
 	cmds=$( __fz:core::commands )
@@ -696,16 +739,7 @@ function __fz:core::main()
 			__fz:core::completion::zsh ;;
 
 		-h|--help)
-			local binBatcat=
-			binBatcat=$( __fz:api::command batcat bat )
-
-			if [[ -n ${binBatcat} ]] ; then
-				__fz:core::theme
-				__fz:core::help 2>&1 | ${binBatcat} --language=help --paging=never --style=plain
-			else
-				__fz:core::help
-			fi
-		;;
+			__fz:core::help ;;
 
 		-V|--version)
 			__fz:core::version ;;
@@ -716,33 +750,14 @@ function __fz:core::main()
 		;;
 
 		*)
-			local returnCode=
-
-			arg=$( __fz:api::fzf --prompt="fz > " --query="${1:-}" --reverse --select-1 <<< "$( __fz:core::commands )" )
-			[[ -n ${arg} ]] || return 0                     # fzf cancelled
-
-			[[ -n ${1:-} ]] && shift
-
-			__fz:core::hook onInit "${arg}"
-			__fz:core::theme
-
 			command -v fzf &>/dev/null || {
+				__fz:core::theme
 				printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}"
+
 				return 127
 			}
 
-			declare -F fz::"${arg}" &>/dev/null || {
-				printf '[%s]: Found argument "%s" which wasn'\''t expected. Try --help.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${arg}${FZ_COLOR_RESET}"
-				return 1
-			}
-
-			__fz:core::hook onStart "${arg}"
-
-			fz::"${arg}" "$@"
-			returnCode=$?
-
-			__fz:core::hook onExit "${arg}"
-			return ${returnCode}
+			__fz:core::dispatch "$@"
 		;;
 	esac
 

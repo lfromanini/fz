@@ -33,7 +33,7 @@ The following hooks are currently supported:
 
 | Hook      | Description                                                                            |
 |-----------|----------------------------------------------------------------------------------------|
-| `onInit`  | Executed during initialization, before dependency and command validation               |
+| `onInit`  | Executed during initialization, before theme loading and command validation            |
 | `onStart` | Executed after dependency and command validation, immediately before command execution |
 | `onExit`  | Executed after command execution, regardless of its exit status                        |
 
