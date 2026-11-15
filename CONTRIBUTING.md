@@ -9,7 +9,7 @@ Contributions are welcome. Please follow the conventions below when adding or mo
 ### Code Structure
 
 - `fz::*` functions are public commands. Every `fz::*` function must correspond to a command that can be invoked as `fz <command>`.
-- Add a `__fz::<command>::fz::help` function for every `fz::<command>` command. Help functions are automatically discovered and included in `--help`.
+- Add a `_fz::<command>::fz::help` function for every `fz::<command>` command. Help functions are automatically discovered and included in `--help`.
 - Public commands are automatically discovered by `__fz:core::commands`. They are therefore automatically included in `--help` and shell completions.
 - `_fz::*` functions are internal functions intended to be called by developers. Since FZF starts a new shell for previews, you may need to call an internal function via `fz _fz::<command>::<function>`.
 - `__fz::*` functions are private support functions and are not exposed as commands.
@@ -80,7 +80,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 	...
 }
 
-command -v tmux &>/dev/null && function __fz::tmux::fz::help()
+command -v tmux &>/dev/null && function _fz::tmux::fz::help()
 {
 	...
 }
