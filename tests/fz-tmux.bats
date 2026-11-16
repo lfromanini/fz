@@ -6,7 +6,7 @@ function setup()
 	export TMUX="/run/tmux/1000/default,12345,0"
 }
 
-@test "fz tmux ................ # tmux not installed" {
+@test "fz tmux ........................ # tmux not installed" {
 
 	function command()
 	{
@@ -32,7 +32,7 @@ function setup()
 	[[ ${output} == "[fz error]:"*"tmux"* ]]
 }
 
-@test "fz tmux ................ # empty selection" {
+@test "fz tmux ........................ # empty selection" {
 
 	setFzfMock tmux
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -41,7 +41,7 @@ function setup()
 	[[ -z ${output} ]]
 }
 
-@test "fz tmux ................ # [ esc ] handles fzf cancellation" {
+@test "fz tmux ........................ # [ esc ] handles fzf cancellation" {
 
 	setFzfMock tmux
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -50,7 +50,7 @@ function setup()
 	[[ -z ${output} ]]
 }
 
-@test "fz tmux ................ # [ enter ] session inside tmux" {
+@test "fz tmux ........................ # [ enter ] session inside tmux" {
 
 	setFzfMock tmux $'enter\nsession mySession _ 2w'
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -59,7 +59,7 @@ function setup()
 	[[ ${output} == "mocked-tmux switch-client -t mySession" ]]
 }
 
-@test "fz tmux ................ # [ enter ] session outside tmux" {
+@test "fz tmux ........................ # [ enter ] session outside tmux" {
 
 	unset TMUX
 
@@ -70,7 +70,7 @@ function setup()
 	[[ ${output} == "mocked-tmux attach -t mySession" ]]
 }
 
-@test "fz tmux ................ # [ enter ] window inside tmux" {
+@test "fz tmux ........................ # [ enter ] window inside tmux" {
 
 	setFzfMock tmux $'enter\nwindow mySession:0 bash 1p'
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -79,7 +79,7 @@ function setup()
 	[[ ${output} == "mocked-tmux select-window -t mySession:0" ]]
 }
 
-@test "fz tmux ................ # [ enter ] window outside tmux" {
+@test "fz tmux ........................ # [ enter ] window outside tmux" {
 
 	unset TMUX
 
@@ -90,7 +90,7 @@ function setup()
 	[[ ${output} == "mocked-tmux attach -t mySession ; select-window -t mySession:0" ]]
 }
 
-@test "fz tmux ................ # [ enter ] pane inside tmux" {
+@test "fz tmux ........................ # [ enter ] pane inside tmux" {
 
 	setFzfMock tmux $'enter\npane mySession:0.1 bash'
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -99,7 +99,7 @@ function setup()
 	[[ ${output} == "mocked-tmux select-window -t mySession:0.1 ; select-pane -t mySession:0.1" ]]
 }
 
-@test "fz tmux ................ # [ enter ] pane outside tmux" {
+@test "fz tmux ........................ # [ enter ] pane outside tmux" {
 
 	unset TMUX
 
@@ -110,7 +110,7 @@ function setup()
 	[[ ${output} == "mocked-tmux attach -t mySession ; select-pane -t mySession:0.1" ]]
 }
 
-@test "fz tmux ................ # [ ctrl-k ] session" {
+@test "fz tmux ........................ # [ ctrl-k ] session" {
 
 	setFzfMock tmux $'ctrl-k\nsession mySession _ 2w' Yes
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -119,7 +119,7 @@ function setup()
 	[[ ${output} == "mocked-tmux kill-session -t mySession" ]]
 }
 
-@test "fz tmux ................ # [ ctrl-k ] window" {
+@test "fz tmux ........................ # [ ctrl-k ] window" {
 
 	setFzfMock tmux $'ctrl-k\nwindow mySession:0 bash 1p' Yes
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux
@@ -128,7 +128,7 @@ function setup()
 	[[ ${output} == "mocked-tmux kill-window -t mySession:0" ]]
 }
 
-@test "fz tmux ................ # [ ctrl-k ] pane" {
+@test "fz tmux ........................ # [ ctrl-k ] pane" {
 
 	setFzfMock tmux $'ctrl-k\npane mySession:0.1 bash' Yes
 	PATH="${PATH_MOCKS}" run bash "${FZ_BIN}" tmux

@@ -5,8 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.16.8
-
+readonly VERSION=1.17.0
 
 ### commands
 ##################
@@ -20,14 +19,24 @@ function fz::env()
 	local selection=
 
 	input=$( for idx in "${!__FZ_ENV_SNAPSHOT[@]}" ; do printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${__FZ_ENV_SNAPSHOT[${idx}]}" ; done | sort )
-	selection=$( __fz:api::fzf --accept-nth=1 --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --delimiter="=" --multi --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=1 --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --delimiter="=" --multi --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	while IFS= read -r idx ; do
 		[[ -z ${idx} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${!idx}"
 	done <<< "${selection}"
 }
 
-function _fz::env::fz::help()
+function fz::env::fz::hook::onInit()
+{
+	declare -gA __FZ_ENV_SNAPSHOT=( )
+	local idx=
+
+	while IFS= read -r idx ; do
+		__FZ_ENV_SNAPSHOT["${idx}"]=${!idx}
+	done < <( compgen -e )
+}
+
+function public:fz::env::fz::help()
 {
 	cat <<- HEREDOC
 	    env [QUERY]
@@ -38,19 +47,9 @@ function _fz::env::fz::help()
 	HEREDOC
 }
 
-function __fz::env::fz::hook::onInit()
-{
-	declare -gA __FZ_ENV_SNAPSHOT=( )
-	local idx=
-
-	while IFS= read -r idx ; do
-		__FZ_ENV_SNAPSHOT["${idx}"]=${!idx}
-	done < <( compgen -e )
-}
-
 ### git
 
-command -v git &>/dev/null && function fz::git()
+function fz::git()
 {
 	local arg=
 
@@ -64,16 +63,16 @@ command -v git &>/dev/null && function fz::git()
 		return ${returnCode}
 	}
 
-	arg=$( __fz:api::fzf --prompt="${FUNCNAME[0]} > " --query="${1:-}" --reverse --select-1 <<< "$( __fz::git::fz::completion )" )
+	arg=$( fz:api::fzf --prompt="${FUNCNAME[0]} > " --query="${1:-}" --reverse --select-1 <<< "$( public:fz::git::fz::completion )" )
 
 	[[ -z ${arg} ]] || {
 
 		[[ -n ${1:-} ]] && shift
-		__fz::git::"${arg}" "$@"
+		fz::git::"${arg}" "$@"
 	}
 }
 
-function __fz::git::add()
+function fz::git::add()
 {
 	local cmdPreview="nl -ba"
 	local binBatcat=
@@ -81,17 +80,17 @@ function __fz::git::add()
 	local input=
 	local selection=
 
-	binBatcat=$( __fz:api::command batcat bat )
+	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers"
 
 	fzfPreview="
 		fp=\$( awk '{ print substr( \$0, 4 ) }' <<< {} )
 		[[ -n \${fp} ]] || return 0
-		if git ls-files --error-unmatch -- \${fp} &>/dev/null ; then git diff --color=always -- \${fp} | $( __fz::git::getPager ) ; else ${cmdPreview} -- \${fp} ; fi
+		if git ls-files --error-unmatch -- \${fp} &>/dev/null ; then git diff --color=always -- \${fp} | $( fz::git::getPager ) ; else ${cmdPreview} -- \${fp} ; fi
 	"
 
 	input=$( GIT_CONFIG_PARAMETERS="'color.status=always'" git status --null --short --untracked-files=all | xargs -0 -n 1 )
-	selection=$( __fz:api::fzf --ansi --multi --preview="${fzfPreview}" --prompt="fz::git::add > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --ansi --multi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -z ${selection} ]] || {
 		while IFS= read -r input ; do
@@ -103,17 +102,17 @@ function __fz::git::add()
 	}
 }
 
-function __fz::git::branch()
+function fz::git::branch()
 {
 	local fzfPreview=
 	local input=
 	local selection=
 	local branch=
 
-	fzfPreview="git log --color=always --oneline --graph --decorate {1} | $( __fz::git::getPager )"
+	fzfPreview="git log --color=always --oneline --graph --decorate {1} | $( fz::git::getPager )"
 
 	input=$( git branch --all --color --sort=-committerdate | grep -v '^\*' || : )
-	selection=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="fz::git::branch > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	branch=${selection#\* }                                 # remove the leading asterisk and space, if present
 	branch=${branch#  }                                     # remove the leading two spaces, if present
@@ -123,7 +122,7 @@ function __fz::git::branch()
 
 	case ${selection} in
 		"  remotes/"*)
-			__fz:api::confirm "Create local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branch##*/}${FZ_COLOR_RESET}" || return 0
+			fz:api::confirm "Create local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branch##*/}${FZ_COLOR_RESET}" || return 0
 			git switch --track -c -- "${branch##*/}" "${selection#  }"
 		;;
 
@@ -133,21 +132,21 @@ function __fz::git::branch()
 	esac
 }
 
-function __fz::git::diff()
+function fz::git::diff()
 {
 	local fzfPreview=
 	local input=
 	local selection=
 
-	fzfPreview="[[ -z {2} ]] || git diff -- {2} | $( __fz::git::getPager )"
+	fzfPreview="[[ -z {2} ]] || git diff -- {2} | $( fz::git::getPager )"
 
 	input=$( git diff HEAD --color=always --name-status )
-	selection=$( __fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --prompt="fz::git::diff > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -z "${selection}" ]] || git diff -- "${selection}"
 }
 
-function __fz::git::getPager()
+function fz::git::getPager()
 {
 	local pager=
 	pager=$( git config --get core.pager || : )
@@ -170,7 +169,7 @@ function __fz::git::getPager()
 	printf '%s' "${pager}"
 }
 
-function __fz::git::log()
+function fz::git::log()
 {
 	local input=
 	local hash=
@@ -178,14 +177,14 @@ function __fz::git::log()
 	local fzfPreview='git show --color --no-renames --stat "$( awk '\''{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) ; exit }'\'' <<< {} )"'
 
 	input=$( git log --color=always --format="%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" --graph )
-	hash=$( __fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="fz::git::log > " --query="$*" --reverse <<< "${input}" | awk '{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) }' )
+	hash=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" | awk '{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) }' )
 
 	[[ -z ${hash} ]] || git show --color "${hash}"
 }
 
-command -v git &>/dev/null && function __fz::git::fz::completion() { printf '%s\n' add branch diff log ; }
+function public:fz::git::fz::completion() { printf '%s\n' add branch diff log ; }
 
-command -v git &>/dev/null && function _fz::git::fz::help()
+function public:fz::git::fz::help()
 {
 	cat <<- HEREDOC
 	    git [COMMAND] [QUERY]
@@ -216,9 +215,9 @@ function fz::grep()
 	local fp=
 	local args=( )
 
-	[[ -v FZ_GREP_EXCLUDE_DIR ]] || FZ_GREP_EXCLUDE_DIR=$( __fz::grep::defaultExcludeDir )
+	[[ -v FZ_GREP_EXCLUDE_DIR ]] || FZ_GREP_EXCLUDE_DIR=$( fz::grep::defaultExcludeDir )
 
-	binSearcher=$( __fz:api::command rg grep )
+	binSearcher=$( fz:api::command rg grep )
 
 	case ${binSearcher} in
 		*/rg)
@@ -247,18 +246,18 @@ function fz::grep()
 			return 127 ;;
 	esac
 
-	binBatcat=$( __fz:api::command batcat bat )
+	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers {1}"
 
 	input=$( ${binSearcher} "${args[@]}" )
-	fp=$( __fz:api::fzf --accept-nth=1 --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} ${binSearcher##*/} > " --reverse <<< "${input}" )
+	fp=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} ( ${binSearcher##*/} ) > " --reverse <<< "${input}" )
 
 	if [[ -z ${fp} ]] ; then return 0 ; elif [[ -n ${EDITOR:-} ]] ; then ${EDITOR} -- "${fp}" ; else printf '%s\n' "${fp}" ; fi
 }
 
-function __fz::grep::defaultExcludeDir() { printf ".git,.venv,__pycache__,node_modules" ; }
+function fz::grep::defaultExcludeDir() { printf ".git,.venv,__pycache__,node_modules" ; }
 
-function _fz::grep::fz::help()
+function public:fz::grep::fz::help()
 {
 	cat <<- HEREDOC
 	    grep [QUERY]
@@ -268,7 +267,7 @@ function _fz::grep::fz::help()
 	        Environment:
 	            FZ_GREP_EXCLUDE_DIR
 	                Comma-separated directory names to exclude from the search.
-	                Default: $( __fz::grep::defaultExcludeDir )
+	                Default: $( fz::grep::defaultExcludeDir )
 
 	        Example: ${APP_NAME} grep TODO
 	HEREDOC
@@ -285,7 +284,7 @@ function fz::kill()
 	local key=
 	local pid=
 
-	__fz::kill::isSignal "${signal}" || {
+	fz::kill::isSignal "${signal}" || {
 		local returnCode=$?
 
 		printf '[%s]: Invalid %s signal "%s". Supported signals:\n\n%s\n' \
@@ -301,7 +300,7 @@ function fz::kill()
 	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
 
 	selection=$(
-		__fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect="enter,ctrl-k" --header="${fzfHeader}" --header-lines=1 --prompt="${FUNCNAME[0]} ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
+		fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect="enter,ctrl-k" --header="${fzfHeader}" --header-lines=1 --prompt="${FUNCNAME[0]} ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
 	)
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
@@ -312,7 +311,7 @@ function fz::kill()
 		enter) ;;
 
 		ctrl-k)
-			__fz:api::confirm "Kill ?\n\n\t${FZ_COLOR_EMPHASIS}SIGKILL${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET} )" || return 0
+			fz:api::confirm "Kill ?\n\n\t${FZ_COLOR_EMPHASIS}SIGKILL${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET} )" || return 0
 			signal=-SIGKILL
 		;;
 
@@ -320,25 +319,10 @@ function fz::kill()
 			return 0 ;;                                     # fzf cancelled
 	esac
 
-	__fz::kill::kill "${signal}" "${pid}"
+	fz::kill::kill "${signal}" "${pid}"
 }
 
-function __fz::kill::fz::completion() {	bash -c "builtin kill -l | awk '{ for ( i = 2 ; i <= NF ; i += 2 ) print \$i }'" ; }
-
-function _fz::kill::fz::help()
-{
-	cat <<- HEREDOC
-	    kill [SIGNAL]
-	        Signal defaults to -SIGTERM; <CTRL> + <K> uses -SIGKILL.
-	        Use <CTRL> + <R> to refresh the process list.
-
-	        Examples:
-	            ${APP_NAME} kill
-	            ${APP_NAME} kill -9
-	HEREDOC
-}
-
-function __fz::kill::isSignal()
+function fz::kill::isSignal()
 {
 	local signal=$1
 
@@ -346,7 +330,7 @@ function __fz::kill::isSignal()
 	builtin kill -l "${signal#-}" &>/dev/null
 }
 
-function __fz::kill::kill()
+function fz::kill::kill()
 {
 	local signal=$1
 	local pid=$2
@@ -361,6 +345,21 @@ function __fz::kill::kill()
 	return ${returnCode}
 }
 
+function public:fz::kill::fz::completion() { bash -c "builtin kill -l | awk '{ for ( i = 2 ; i <= NF ; i += 2 ) print \$i }'" ; }
+
+function public:fz::kill::fz::help()
+{
+	cat <<- HEREDOC
+	    kill [SIGNAL]
+	        Signal defaults to -SIGTERM; <CTRL> + <K> uses -SIGKILL.
+	        Use <CTRL> + <R> to refresh the process list.
+
+	        Examples:
+	            ${APP_NAME} kill
+	            ${APP_NAME} kill -9
+	HEREDOC
+}
+
 ### man
 
 function fz::man()
@@ -368,16 +367,16 @@ function fz::man()
 	local fzfPreview="awk '{ gsub( /[ (),]/, \" \" ) ; print \$2, \$1 }' <<< {} | xargs man"
 	local binBatcat=
 
-	binBatcat=$( __fz:api::command batcat bat )
+	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && fzfPreview+=' | bash -c "col -bx | '${binBatcat}' --color=always --language=man --paging=never --style=plain"'
 
-	__fz:api::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="${FUNCNAME[0]} > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
+	fz:api::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="${FUNCNAME[0]} > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
 		| xargs -I {} printf 'man %s\n' {} \
 		| bash
 }
 
-function _fz::man::fz::help()
+function public:fz::man::fz::help()
 {
 	cat <<- HEREDOC
 	    man [QUERY]
@@ -391,7 +390,7 @@ function _fz::man::fz::help()
 
 function fz::ssh()
 {
-	export -f __fz:api::fzf
+	export -f fz:api::fzf
 
 	local fzfFilter=
 	local fzfPreview=
@@ -468,14 +467,14 @@ function fz::ssh()
 	fzfPreview="ssh -G {} 2>/dev/null | ${fzfFilter}"
 
 	sshServer=$( bash --noprofile --norc -ic '
-		source <( __fz:api::fzf --bash )
-		__fzf_list_hosts | __fz:api::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="'"${FUNCNAME[0]}"' > " --query="'"${fzfQuery}"'" --reverse --select-1
+		source <( fz:api::fzf --bash )
+		__fzf_list_hosts | fz:api::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="'"${FUNCNAME[0]}"' > " --query="'"${fzfQuery}"'" --reverse --select-1
 	' 2>/dev/null )
 
 	[[ -z ${sshServer} ]] || ssh "${sshArgs[@]}" "${sshServer}" -- "${remoteCommand[@]}"
 }
 
-function _fz::ssh::fz::help()
+function public:fz::ssh::fz::help()
 {
 	cat <<- HEREDOC
 	    ssh [SSH_OPTIONS] [-- COMMAND [ARGUMENTS...]]
@@ -490,7 +489,7 @@ function _fz::ssh::fz::help()
 
 ### tmux
 
-command -v tmux &>/dev/null && function fz::tmux()
+function fz::tmux()
 {
 	local selection=
 	local key=
@@ -503,7 +502,7 @@ command -v tmux &>/dev/null && function fz::tmux()
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
 		| column -t \
-		| __fz:api::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
+		| fz:api::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
 	)
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
@@ -522,13 +521,13 @@ command -v tmux &>/dev/null && function fz::tmux()
 			if [[ -n "${TMUX:-}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 
 		ctrl-k:session|ctrl-k:window|ctrl-k:pane)
-			__fz:api::confirm "Kill ?\n\n\tTMUX ${FZ_COLOR_EMPHASIS}${selectedType}${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selectedTarget}${FZ_COLOR_RESET} )" || return 0
+			fz:api::confirm "Kill ?\n\n\tTMUX ${FZ_COLOR_EMPHASIS}${selectedType}${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selectedTarget}${FZ_COLOR_RESET} )" || return 0
 			tmux kill-"${selectedType}" -t "${selectedTarget}"
 		;;
 	esac
 }
 
-command -v tmux &>/dev/null && function _fz::tmux::fz::help()
+function public:fz::tmux::fz::help()
 {
 	cat <<- HEREDOC
 	    tmux [QUERY]
@@ -542,7 +541,7 @@ command -v tmux &>/dev/null && function _fz::tmux::fz::help()
 ### api functions
 ##################
 
-function __fz:api::command()
+function fz:api::command()
 (
 	local cmd=
 
@@ -557,40 +556,55 @@ function __fz:api::command()
 	printf '%s\n' "${cmd}"
 )
 
-function __fz:api::confirm()
+function fz:api::confirm()
 {
 	local msg=${1:-"Proceed?"}
 	local answer=
 
 	printf -v msg '%b\n\n' "${msg}"
 
-	answer=$( printf '%s\n' 'Yes' 'No' | __fz:api::fzf --border=rounded --disabled --header="${msg}" --height=10 --no-info --prompt="${FUNCNAME[1]} > " --reverse )
+	answer=$( printf '%s\n' 'Yes' 'No' | fz:api::fzf --border=rounded --disabled --header="${msg}" --height=10 --no-info --prompt="${FUNCNAME[1]} > " --reverse )
 	[[ ${answer} == Yes ]]
 }
 
 # treat fzf cancellation (130) as success to avoid triggering pipefail
-function __fz:api::fzf() { fzf "$@" || (( $? == 130 )) ; }
+function fz:api::fzf() { fzf "$@" || (( $? == 130 )) ; }
 
 ### core functions
 ##################
 
-function __fz:core::commands() { compgen -A function fz:: | awk '{ sub( /^fz::/, "" ) ; print }' | sort ; }
+function fz:core::commands()
+{
+	local fn=
+	local cmd=
 
-function _fz:core::completion()
+	while IFS= read -r fn ; do
+
+		cmd="${fn#fz::}"
+
+		[[ "${cmd}" == "${cmd}":* ]] && continue            # skip nested functions (e.g. fz::git::help)
+		command -v "${cmd}" &>/dev/null || continue         # keep only functions whose command is valid
+
+		printf '%s\n' "${cmd}"
+
+	done < <( compgen -A function fz:: ) | sort
+}
+
+function public:fz:core::completion()
 {
 	local cmd=${1:-}
 
-	declare -F fz::"${cmd}" &>/dev/null || return 1
-	declare -F __fz::"${cmd}"::fz::completion &>/dev/null || return 0
+	command -v "${cmd}" &>/dev/null || return 1
+	declare -F public:fz::"${cmd}"::fz::completion &>/dev/null || return 0
 
-	__fz::"${cmd}"::fz::completion
+	public:fz::"${cmd}"::fz::completion
 }
 
-function __fz:core::completion::bash()
+function fz:core::completion::bash()
 {
 	local cmdList=
 
-	cmdList=$( __fz:core::commands )
+	cmdList=$( fz:core::commands )
 	cmdList=${cmdList//$'\n'/ }
 
 	cat <<- HEREDOC
@@ -602,7 +616,7 @@ function __fz:core::completion::bash()
 		if [[ \${COMP_CWORD} -eq 1 ]] ; then
 			COMPREPLY=( \$( compgen -W "\${commands}" -- "\${cur}" ) )
 		else
-			local completions="\$( fz _fz:core::completion "\${command}" )"
+			local completions="\$( fz public:fz:core::completion "\${command}" )"
 			COMPREPLY=( \$( compgen -W "\${completions}" -- "\${cur}" ) )
 		fi
 	}
@@ -611,10 +625,10 @@ function __fz:core::completion::bash()
 	HEREDOC
 }
 
-function __fz:core::completion::zsh()
+function fz:core::completion::zsh()
 {
 	local cmdList=
-	cmdList=$( __fz:core::commands | awk '{ printf "\t\t\"%s:Run fz %s\"\n", $0, $0 }' )
+	cmdList=$( fz:core::commands | awk '{ printf "\t\t\"%s:Run fz %s\"\n", $0, $0 }' )
 
 	cat <<- HEREDOC
 	#compdef fz
@@ -634,7 +648,7 @@ function __fz:core::completion::zsh()
 		fi
 
 		local command="\${words[2]}"
-		local -a completions=( \$( fz _fz:core::completion "\${command}" ) )
+		local -a completions=( \$( fz public:fz:core::completion "\${command}" ) )
 		_describe 'completion' completions
 	}
 
@@ -642,51 +656,51 @@ function __fz:core::completion::zsh()
 	HEREDOC
 }
 
-function __fz:core::dispatch()
+function fz:core::dispatch()
 {
 	local arg=
 	local returnCode=0
-	local fzfPreview="$0 _fz::{}::fz::help | awk '{ sub( /^    /, \"\" ) ; print }'"
+	local fzfPreview="$0 public:fz::{}::fz::help | awk '{ sub( /^    /, \"\" ) ; print }'"
 
-	arg=$( __fz:api::fzf --preview="${fzfPreview}" --prompt="${APP_NAME} > " --query="${1:-}" --reverse --select-1 <<< "$( __fz:core::commands )" )
+	arg=$( fz:api::fzf --preview="${fzfPreview}" --prompt="${APP_NAME} > " --query="${1:-}" --reverse --select-1 <<< "$( fz:core::commands )" )
 
 	[[ -n ${arg} ]] && {
 
 		[[ -n ${1:-} ]] && shift
 
-		__fz:core::hook onInit "${arg}"
-		__fz:core::theme
+		fz:core::hook onInit "${arg}"
+		fz:core::theme
 
-		__fz:core::hook onStart "${arg}"
+		fz:core::hook onStart "${arg}"
 
 		fz::"${arg}" "$@"
 		returnCode=$?
 
-		__fz:core::hook onExit "${arg}"
+		fz:core::hook onExit "${arg}"
 	}
 
 	return ${returnCode}
 }
 
-function __fz:core::help()
+function fz:core::help()
 {
 	local binBatcat=
-	binBatcat=$( __fz:api::command batcat bat )
+	binBatcat=$( fz:api::command batcat bat )
 
 	if [[ -n ${binBatcat} ]] ; then
-		__fz:core::theme
-		__fz:core::help::text 2>&1 | ${binBatcat} --language=help --paging=never --style=plain
+		fz:core::theme
+		fz:core::help::text 2>&1 | ${binBatcat} --language=help --paging=never --style=plain
 	else
-		__fz:core::help::text
+		fz:core::help::text
 	fi
 }
 
-function __fz:core::help::text()
+function fz:core::help::text()
 {
 	local cmds=
-	cmds=$( __fz:core::commands )
+	cmds=$( fz:core::commands )
 
-	__fz:core::version
+	fz:core::version
 
 	cat <<- HEREDOC
 
@@ -705,7 +719,7 @@ function __fz:core::help::text()
 		local helpFunction=
 
 		local cmd= ; while IFS= read -r cmd ; do
-			helpFunction=_fz::"${cmd}"::fz::help
+			helpFunction=public:fz::"${cmd}"::fz::help
 			declare -F "${helpFunction}" &>/dev/null && printf '\n' && "${helpFunction}"
 		done <<< "${cmds}"
 	)
@@ -717,63 +731,65 @@ function __fz:core::help::text()
 	HEREDOC
 }
 
-function __fz:core::hook()
+function fz:core::hook()
 {
 	local hook=$1
 	local cmd=$2
 
-	declare -F __fz::"${cmd}"::fz::hook::"${hook}" &>/dev/null && __fz::"${cmd}"::fz::hook::"${hook}" || :
+	declare -F fz::"${cmd}"::fz::hook::"${hook}" &>/dev/null && fz::"${cmd}"::fz::hook::"${hook}" || :
 }
 
-function __fz:core::main()
+function fz:core::main()
 {
 	local arg=${1:-}
 
 	case ${arg} in
 		--bash-completion)
-			__fz:core::completion::bash ;;
+			fz:core::completion::bash ;;
 
 		--zsh-completion)
-			__fz:core::completion::zsh ;;
+			fz:core::completion::zsh ;;
 
 		-h|--help)
-			__fz:core::help ;;
+			fz:core::help ;;
 
 		-V|--version)
-			__fz:core::version ;;
+			fz:core::version ;;
 
-		_fz:*)
+		public:fz:*)
 			shift
-			${arg} "$@"                                     # non-public (internal) functions
+			${arg} "$@"                                     # public exposed functions
 		;;
 
 		*)
 			command -v fzf &>/dev/null || {
-				__fz:core::theme
+				fz:core::theme
 				printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}"
 
 				return 127
 			}
 
-			__fz:core::dispatch "$@"
+			fz:core::dispatch "$@"
 		;;
 	esac
 
 	return $?
 }
 
-function __fz:core::theme()
+function fz:core::theme()
 {
+	function fz:core::theme() { : ; }                       # callable only once
+
 	local -r DEFAULT_THEME=Dracula
 
 	local -A fzPalette=( )
 	local -A rgb=( )
 	local -A arrTheme=(
-		["Catppuccin Mocha"]=__fz:theme::catppuccinMocha
-		["Dracula"]=__fz:theme::dracula
-		["Monokai Extended Bright"]=__fz:theme::monokaiExtendedBright
-		["Nord"]=__fz:theme::nord
-		["Visual Studio Dark+"]=__fz:theme::visualStudioDarkPlus
+		["Catppuccin Mocha"]=fz:theme::catppuccinMocha
+		["Dracula"]=fz:theme::dracula
+		["Monokai Extended Bright"]=fz:theme::monokaiExtendedBright
+		["Nord"]=fz:theme::nord
+		["Visual Studio Dark+"]=fz:theme::visualStudioDarkPlus
 	)
 
 	local fzThemeName=${FZ_THEME:-${DEFAULT_THEME}}
@@ -812,32 +828,32 @@ function __fz:core::theme()
 # shellcheck disable=SC2034                                 # SC2034: foo appears unused. Verify it or export it.
 # shellcheck disable=SC2178                                 # SC2178: Variable was used as an array but is now assigned a string.
 {
-	function __fz:theme::catppuccinMocha() {
+	function fz:theme::catppuccinMocha() {
 		local -n ref=$1
 		ref=( [PRIMARY]='#89DCEB' [SECONDARY]='#CBA6F7' [ACCENT]='#F5C2E7' [EMPHASIS]='#F9E2AF' [STRONG]='#CDD6F4' [MUTED]='#6C7086' )
 	}
 
-	function __fz:theme::dracula() {
+	function fz:theme::dracula() {
 		local -n ref=$1
 		ref=( [PRIMARY]='#8BE9FD' [SECONDARY]='#BD93F9' [ACCENT]='#FF79C6' [EMPHASIS]='#F1FA8C' [STRONG]='#F8F8F2' [MUTED]='#6272A4' )
 	}
 
-	function __fz:theme::monokaiExtendedBright() {
+	function fz:theme::monokaiExtendedBright() {
 		local -n ref=$1
 		ref=( [PRIMARY]='#66D9EF' [SECONDARY]='#AE81FF' [ACCENT]='#F92672' [EMPHASIS]='#E6DB74' [STRONG]='#F8F8F2' [MUTED]='#75715E' )
 	}
 
-	function __fz:theme::nord() {
+	function fz:theme::nord() {
 		local -n ref=$1
 		ref=( [PRIMARY]='#88C0D0' [SECONDARY]='#81A1C1' [ACCENT]='#B48EAD' [EMPHASIS]='#EBCB8B' [STRONG]='#ECEFF4' [MUTED]='#4C566A' )
 	}
 
-	function __fz:theme::visualStudioDarkPlus() {
+	function fz:theme::visualStudioDarkPlus() {
 		local -n ref=$1
 		ref=( [PRIMARY]='#569CD6' [SECONDARY]='#9CDCFE' [ACCENT]='#C586C0' [EMPHASIS]='#DCDCAA' [STRONG]='#D4D4D4' [MUTED]='#808080' )
 	}
 }
 
-function __fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
+function fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
 
-__fz:core::main "$@"
+fz:core::main "$@"

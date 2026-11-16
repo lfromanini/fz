@@ -6,7 +6,7 @@ function setup()
 	export EDITOR=
 }
 
-@test "fz grep ................ # grep text" {
+@test "fz grep ........................ # grep text" {
 
 	setFzfMock grep "file.txt:1:text to search"
 	run bash "${FZ_BIN}" grep "text to search"
@@ -15,7 +15,7 @@ function setup()
 	[[ $( cut -d: -f1 <<< "${output}" ) == file.txt ]]
 }
 
-@test "fz grep ................ # [ esc ] handles fzf cancellation" {
+@test "fz grep ........................ # [ esc ] handles fzf cancellation" {
 
 	setFzfMock grep
 	run bash "${FZ_BIN}" grep
@@ -24,7 +24,7 @@ function setup()
 	[[ -z ${output} ]]
 }
 
-@test "fz grep ................ # grep is unavailable" {
+@test "fz grep ........................ # grep is unavailable" {
 
 	function command()
 	{

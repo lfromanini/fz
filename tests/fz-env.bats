@@ -2,7 +2,7 @@
 
 function setup() { load "support/common.bash" ; }
 
-@test "fz env ................. # valid environment variable" {
+@test "fz env ......................... # valid environment variable" {
 
 	setFzfMock env HOME
 	run bash "${FZ_BIN}" env
@@ -11,7 +11,7 @@ function setup() { load "support/common.bash" ; }
 	[[ $( stripColors "${output}" ) == "HOME=${HOME}" ]]
 }
 
-@test "fz env ................. # [ esc ] handles fzf cancellation" {
+@test "fz env ......................... # [ esc ] handles fzf cancellation" {
 
 	setFzfMock env
 	run bash "${FZ_BIN}" env

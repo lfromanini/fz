@@ -13,7 +13,7 @@ function spawnTestProcess()
 	TARGET_PROCESS_CTRL_K="ctrl-k"$'\n'"user ${pid} 0.0 0.1 12345 1234 pts/0 S+ 10:00 0:00 bash"
 }
 
-@test "fz kill ................ # [ esc ] handles fzf cancellation" {
+@test "fz kill ........................ # [ esc ] handles fzf cancellation" {
 
 	setFzfMock kill
 	run bash "${FZ_BIN}" kill
@@ -22,7 +22,7 @@ function spawnTestProcess()
 	[[ -z ${output} ]]
 }
 
-@test "fz kill ................ # [ enter ] kill with default -SIGTERM" {
+@test "fz kill ........................ # [ enter ] kill with default -SIGTERM" {
 
 	spawnTestProcess
 
@@ -33,7 +33,7 @@ function spawnTestProcess()
 	[[ -z ${output} ]]
 }
 
-@test "fz kill -SIGKILL ....... # [ enter ] kill with valid signal" {
+@test "fz kill -SIGKILL ............... # [ enter ] kill with valid signal" {
 
 	spawnTestProcess
 
@@ -44,7 +44,7 @@ function spawnTestProcess()
 	[[ -z ${output} ]]
 }
 
-@test "fz kill -9 ............. # [ enter ] kill with valid signal number" {
+@test "fz kill -9 ..................... # [ enter ] kill with valid signal number" {
 
 	spawnTestProcess
 
@@ -55,7 +55,7 @@ function spawnTestProcess()
 	[[ -z ${output} ]]
 }
 
-@test "fz kill -NOT_A_SIGNAL .. # [ enter ] kill with invalid signal" {
+@test "fz kill -NOT_A_SIGNAL .......... # [ enter ] kill with invalid signal" {
 
 	setFzfMock kill
 	run bash "${FZ_BIN}" kill -NOT_A_SIGNAL
@@ -64,7 +64,7 @@ function spawnTestProcess()
 	[[ $( stripColors "${output}" ) == *"Invalid fz::kill signal"* ]]
 }
 
-@test "fz kill --SIGTERM ...... # [ enter ] kill with invalid signal" {
+@test "fz kill --SIGTERM .............. # [ enter ] kill with invalid signal" {
 
 	setFzfMock kill
 	run bash "${FZ_BIN}" kill --SIGTERM
@@ -73,7 +73,7 @@ function spawnTestProcess()
 	[[ $( stripColors "${output}" ) == *"Invalid fz::kill signal"* ]]
 }
 
-@test "fz kill 9 .............. # [ enter ] kill with invalid signal" {
+@test "fz kill 9 ...................... # [ enter ] kill with invalid signal" {
 
 	setFzfMock kill
 	run bash "${FZ_BIN}" kill 9
@@ -82,7 +82,7 @@ function spawnTestProcess()
 	[[ $( stripColors "${output}" ) == *"Invalid fz::kill signal"* ]]
 }
 
-@test "fz kill ................ # [ ctrl-k ] kill with -SIGKILL" {
+@test "fz kill ........................ # [ ctrl-k ] kill with -SIGKILL" {
 
 	spawnTestProcess
 

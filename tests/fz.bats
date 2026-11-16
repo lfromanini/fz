@@ -2,7 +2,7 @@
 
 function setup() { load "support/common.bash" ; }
 
-@test "fz --help" {
+@test "fz --help ...................... # help (long argument)" {
 
 	run bash "${FZ_BIN}" --help
 
@@ -10,7 +10,7 @@ function setup() { load "support/common.bash" ; }
 	[[ ${output} == *"Usage:"* ]]
 }
 
-@test "fz -h" {
+@test "fz -h .......................... # help (short argument)" {
 
 	run bash "${FZ_BIN}" -h
 
@@ -18,7 +18,7 @@ function setup() { load "support/common.bash" ; }
 	[[ ${output} == *"Usage:"* ]]
 }
 
-@test "fz --version" {
+@test "fz --version ................... # version (long argument)" {
 
 	local version=
 	version=$( awk -F= '/^readonly VERSION=/ { print $2 }' "${FZ_BIN}" )
@@ -29,7 +29,7 @@ function setup() { load "support/common.bash" ; }
 	[[ ${output} == "fz ${version}" ]]
 }
 
-@test "fz -V" {
+@test "fz -V .......................... # version (short argument)" {
 
 	local version=
 	version=$( awk -F= '/^readonly VERSION=/ { print $2 }' "${FZ_BIN}" )
@@ -40,7 +40,7 @@ function setup() { load "support/common.bash" ; }
 	[[ ${output} == "fz ${version}" ]]
 }
 
-@test "fz ..................... # fzf not installed" {
+@test "fz ............................. # fzf not installed" {
 
 	function command()
 	{
@@ -66,25 +66,25 @@ function setup() { load "support/common.bash" ; }
 	[[ ${output} == "[fz error]:"* ]]
 }
 
-@test "fz _fz::completion kill  # valid non-public (internal) function call" {
+@test "fz public:fz::completion kill .. # valid public function call" {
 
-	run bash "${FZ_BIN}" _fz:core::completion kill
+	run bash "${FZ_BIN}" public:fz:core::completion kill
 
 	[[ ${status} == 0 ]]
 	[[ ${output} == "SIG"* ]]
 }
 
-@test "fz _fz::unknownFunction  # unknown non-public (internal) function call" {
+@test "fz public:fz::unknownFunction .. # unknown public function call" {
 
 	bats_require_minimum_version 1.5.0
 	set +o errexit
-	run bash -127 "${FZ_BIN}" _fz::unknownFunction
+	run bash -127 "${FZ_BIN}" public:fz::unknownFunction
 
 	[[ ${status} == 127 ]]
-	[[ ${output} == *"_fz::unknownFunction: command not found" ]]
+	[[ ${output} == *"public:fz::unknownFunction: command not found" ]]
 }
 
-@test "fz completions ......... # all commands are included" {
+@test "fz completions ................. # all commands are included" {
 
 	setFzfMock
 
@@ -104,13 +104,13 @@ function setup() { load "support/common.bash" ; }
 	done < <( __fz:core::commands )
 }
 
-@test "fz --bash-completion ... # valid bash completion" {
+@test "fz --bash-completion ........... # valid bash completion" {
 
 	run bash -c 'source <( "'"${FZ_BIN}"'" --bash-completion ) ; complete -p fz'
 	[[ ${status} == 0 ]]
 }
 
-@test "fz --zsh-completion .... # valid zsh completion" {
+@test "fz --zsh-completion ............ # valid zsh completion" {
 
 	run zsh -c 'source <( "'"${FZ_BIN}"'" --zsh-completion ) ; whence -f _fz'
 	[[ ${status} == 0 ]]

@@ -18,7 +18,7 @@ function setup()
 	git commit -qm "Initial commit"
 }
 
-@test "fz git ................. # git not installed" {
+@test "fz git ......................... # git not installed" {
 
 	function command()
 	{
@@ -44,7 +44,7 @@ function setup()
 	[[ ${output} == "[fz error]:"*"git"* ]]
 }
 
-@test "fz git ................. # [ git ] requires a git working tree" {
+@test "fz git ......................... # [ git ] requires a git working tree" {
 
 	cd "${BATS_TEST_TMPDIR}"
 	run bash "${FZ_BIN}" git
@@ -52,7 +52,7 @@ function setup()
 	[[ ${status} != 0 ]]
 }
 
-@test "fz git ................. # [ branch ] switches to selected branch" {
+@test "fz git ......................... # [ branch ] switches to selected branch" {
 
 	git branch feature
 
@@ -63,7 +63,7 @@ function setup()
 	[[ $( git branch --show-current ) == "feature" ]]
 }
 
-@test "fz git ................. # [ branch ] handles fzf cancellation" {
+@test "fz git ......................... # [ branch ] handles fzf cancellation" {
 
 	setFzfMock git branch
 	run bash "${FZ_BIN}" git branch
@@ -72,7 +72,7 @@ function setup()
 	[[ -z ${output} ]]
 }
 
-@test "fz git ................. # [ diff ] displays selected file diff" {
+@test "fz git ......................... # [ diff ] displays selected file diff" {
 
 	printf 'modified content\n' > file.txt
 
@@ -83,7 +83,7 @@ function setup()
 	[[ $( stripColors "${output}" ) == *"modified content"* ]]
 }
 
-@test "fz git ................. # [ diff ] handles fzf cancellation" {
+@test "fz git ......................... # [ diff ] handles fzf cancellation" {
 
 	setFzfMock git diff
 	run bash "${FZ_BIN}" git diff
@@ -92,7 +92,7 @@ function setup()
 	[[ -z ${output} ]]
 }
 
-@test "fz git ................. # [ log ] displays selected commit" {
+@test "fz git ......................... # [ log ] displays selected commit" {
 
 	setFzfMock git log "$( git log -1 --format='%h' )"
 	run bash "${FZ_BIN}" git log
@@ -101,7 +101,7 @@ function setup()
 	[[ $( stripColors "${output}" ) == *"Initial commit"* ]]
 }
 
-@test "fz git ................. # [ log ] handles fzf cancellation" {
+@test "fz git ......................... # [ log ] handles fzf cancellation" {
 
 	setFzfMock git log
 	run bash "${FZ_BIN}" git log
