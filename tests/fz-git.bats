@@ -56,7 +56,7 @@ function setup()
 
 	git branch feature
 
-	setFzfMock git branch feature
+	setFzfMock git branch $'feature\tabc123\t2 hours ago\trefs/heads/feature'
 	run bash "${FZ_BIN}" git branch
 
 	[[ ${status} == 0 ]]

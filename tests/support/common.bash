@@ -14,8 +14,8 @@ function fzf()
 		return 0
 	}
 
-	IFS= read -d $'\t' -r output < "${FZF_MOCK_OUTPUT_FILE}" || :
-	perl -0777 -i -pe 's/\A[^\t]*\t//' "${FZF_MOCK_OUTPUT_FILE}"
+	IFS= read -d '' -r output < "${FZF_MOCK_OUTPUT_FILE}" || :
+	perl -0777 -i -pe 's/\A[^\0]*\0//' "${FZF_MOCK_OUTPUT_FILE}"
 
 	printf '%s' "${output}"
 }
@@ -27,7 +27,7 @@ function setFzfMock()
 	export FZF_MOCK_OUTPUT_FILE=
 	FZF_MOCK_OUTPUT_FILE=$( mktemp "${BATS_TEST_TMPDIR}/bats.XXXXXX" )
 
-	printf '%s\t' "$@" > "${FZF_MOCK_OUTPUT_FILE}"
+	printf '%s\0' "$@" > "${FZF_MOCK_OUTPUT_FILE}"
 }
 
 function stripColors()

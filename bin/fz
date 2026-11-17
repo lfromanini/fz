@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.0
+readonly VERSION=1.17.1
 
 ### commands
 ##################
@@ -86,7 +86,7 @@ function fz::git::add()
 	fzfPreview="
 		fp=\$( awk '{ print substr( \$0, 4 ) }' <<< {} )
 		[[ -n \${fp} ]] || return 0
-		if git ls-files --error-unmatch -- \${fp} &>/dev/null ; then git diff --color=always -- \${fp} | $( fz::git::getPager ) ; else ${cmdPreview} -- \${fp} ; fi
+		if git ls-files --error-unmatch -- \"\${fp}\" &>/dev/null ; then git diff --color=always HEAD -- \"\${fp}\" | $( fz::git::getPager ) ; else ${cmdPreview} -- \"\${fp}\" ; fi
 	"
 
 	input=$( GIT_CONFIG_PARAMETERS="'color.status=always'" git status --null --short --untracked-files=all | xargs -0 -n 1 )
@@ -107,27 +107,51 @@ function fz::git::branch()
 	local fzfPreview=
 	local input=
 	local selection=
-	local branch=
 
-	fzfPreview="git log --color=always --oneline --graph --decorate {1} | $( fz::git::getPager )"
+	input=$( git for-each-ref --format='%(refname:short)%09%(objectname:short)%09%(committerdate:relative)%09%(refname)%09%(symref)' --sort=-committerdate refs/heads refs/remotes | awk -F '\t' '
+		$5 == "" {
+			count++
 
-	input=$( git branch --all --color --sort=-committerdate | grep -v '^\*' || : )
-	selection=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+			if( length( $1 ) > max )
+				max = length( $1 )
 
-	branch=${selection#\* }                                 # remove the leading asterisk and space, if present
-	branch=${branch#  }                                     # remove the leading two spaces, if present
-	branch=${branch#remotes/}                               # remove the "remotes/" prefix, if present
+			rows[count] = $1 "\t" $2 "\t" $3 "\t" $4
+		}
 
-	[[ -z ${branch} || ${selection} =~ ^"  (HEAD detached at " ]] && return 0
+		END {
+			for( i = 1 ; i <= count ; i++ ) {
+				split( rows[i], fields, "\t" )
+				printf "%-*s  %-10s  %-20s\t%s\n", max, fields[1], fields[2], fields[3], fields[4]
+			}
+		}
+	' )
+
+	fzfPreview="
+		ref=\$( grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} )
+		git log --color=always --decorate --graph --max-count=100 --oneline \"\${ref}\" | $( fz::git::getPager )
+	"
+
+	selection=$( fz:api::fzf --delimiter=$'\t' --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=${selection##*$'\t'}                          # extract the full Git reference from the last field
+
+	[[ -z ${selection} ]] && return 0
 
 	case ${selection} in
-		"  remotes/"*)
-			fz:api::confirm "Create local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branch##*/}${FZ_COLOR_RESET}" || return 0
-			git switch --track -c -- "${branch##*/}" "${selection#  }"
+		refs/heads/*)
+			git switch -- "${selection#refs/heads/}"
 		;;
 
-		*)
-			git switch -- "${branch}"
+		refs/remotes/*)
+			local remoteBranch=${selection#refs/remotes/}
+			local localBranch=${remoteBranch#*/}
+
+			if git show-ref --quiet --verify "refs/heads/${localBranch}" ; then
+				fz:api::confirm "Local branch already exists ; switch to it ?\n\n\t${FZ_COLOR_EMPHASIS}${localBranch}${FZ_COLOR_RESET}" || return 0
+				git switch -- "${localBranch}"
+			else
+				fz:api::confirm "Create local branch tracking ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteBranch}${FZ_COLOR_RESET}" || return 0
+				git switch --create "${localBranch}" --track -- "${selection}"
+			fi
 		;;
 	esac
 }
@@ -138,12 +162,12 @@ function fz::git::diff()
 	local input=
 	local selection=
 
-	fzfPreview="[[ -z {2} ]] || git diff -- {2} | $( fz::git::getPager )"
+	fzfPreview="[[ -z {2} ]] || git diff HEAD -- {2} | $( fz::git::getPager )"
 
-	input=$( git diff HEAD --color=always --name-status )
+	input=$( git diff --color=always --name-status HEAD )
 	selection=$( fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
-	[[ -z "${selection}" ]] || git diff -- "${selection}"
+	[[ -z "${selection}" ]] || git diff HEAD -- "${selection}"
 }
 
 function fz::git::getPager()
