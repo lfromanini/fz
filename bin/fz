@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.1
+readonly VERSION=1.17.2
 
 ### commands
 ##################
@@ -19,7 +19,7 @@ function fz::env()
 	local selection=
 
 	input=$( for idx in "${!__FZ_ENV_SNAPSHOT[@]}" ; do printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${__FZ_ENV_SNAPSHOT[${idx}]}" ; done | sort )
-	selection=$( fz:api::fzf --accept-nth=1 --ansi --bind="ctrl-a:select-all,ctrl-space:select-all" --delimiter="=" --multi --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=1 --ansi --bind=ctrl-a:select-all,ctrl-space:select-all --delimiter="=" --multi --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	while IFS= read -r idx ; do
 		[[ -z ${idx} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${!idx}"
@@ -63,7 +63,7 @@ function fz::git()
 		return ${returnCode}
 	}
 
-	arg=$( fz:api::fzf --prompt="${FUNCNAME[0]} > " --query="${1:-}" --reverse --select-1 <<< "$( public:fz::git::fz::completion )" )
+	arg=$( fz:api::fzf --height=30% --prompt="${FUNCNAME[0]} > " --query="${1:-}" --reverse --select-1 <<< "$( public:fz::git::fz::completion )" )
 
 	[[ -z ${arg} ]] || {
 
@@ -81,7 +81,7 @@ function fz::git::add()
 	local selection=
 
 	binBatcat=$( fz:api::command batcat bat )
-	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers"
+	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers --terminal-width=\${FZF_PREVIEW_COLUMNS}"
 
 	fzfPreview="
 		fp=\$( awk '{ print substr( \$0, 4 ) }' <<< {} )
@@ -90,7 +90,7 @@ function fz::git::add()
 	"
 
 	input=$( GIT_CONFIG_PARAMETERS="'color.status=always'" git status --null --short --untracked-files=all | xargs -0 -n 1 )
-	selection=$( fz:api::fzf --ansi --multi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --ansi --multi --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -z ${selection} ]] || {
 		while IFS= read -r input ; do
@@ -126,10 +126,7 @@ function fz::git::branch()
 		}
 	' )
 
-	fzfPreview="
-		ref=\$( grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} )
-		git log --color=always --decorate --graph --max-count=100 --oneline \"\${ref}\" | $( fz::git::getPager )
-	"
+	fzfPreview="grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} | xargs git log --color=always --decorate --graph --max-count=100 --oneline | $( fz::git::getPager )"
 
 	selection=$( fz:api::fzf --delimiter=$'\t' --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 	selection=${selection##*$'\t'}                          # extract the full Git reference from the last field
@@ -165,7 +162,7 @@ function fz::git::diff()
 	fzfPreview="[[ -z {2} ]] || git diff HEAD -- {2} | $( fz::git::getPager )"
 
 	input=$( git diff --color=always --name-status HEAD )
-	selection=$( fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	[[ -z "${selection}" ]] || git diff HEAD -- "${selection}"
 }
@@ -195,15 +192,17 @@ function fz::git::getPager()
 
 function fz::git::log()
 {
+	function __hashFilter() { awk '{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) ; exit }' ; }
+	export -f __hashFilter
+
+	local fzfPreview="bash --noprofile --norc -c __hashFilter <<< {} | xargs git show --color=always --format=fuller --stat"
 	local input=
 	local hash=
-	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
-	local fzfPreview='git show --color --no-renames --stat "$( awk '\''{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) ; exit }'\'' <<< {} )"'
 
 	input=$( git log --color=always --format="%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" --graph )
-	hash=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" | awk '{ gsub( /\033\[[0-9;]*m/, "" ) } match( $0, /[0-9a-f]{7,}/ ) { print substr( $0, RSTART, RLENGTH ) }' )
+	hash=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" | __hashFilter )
 
-	[[ -z ${hash} ]] || git show --color "${hash}"
+	[[ -z ${hash} ]] || git show --color=always "${hash}"
 }
 
 function public:fz::git::fz::completion() { printf '%s\n' add branch diff log ; }
@@ -271,7 +270,7 @@ function fz::grep()
 	esac
 
 	binBatcat=$( fz:api::command batcat bat )
-	[[ -n ${binBatcat} ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers {1}"
+	[[ -n ${binBatcat} ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers --terminal-width=\${FZF_PREVIEW_COLUMNS} {1}"
 
 	input=$( ${binSearcher} "${args[@]}" )
 	fp=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} ( ${binSearcher##*/} ) > " --reverse <<< "${input}" )
@@ -324,7 +323,7 @@ function fz::kill()
 	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
 
 	selection=$(
-		fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect="enter,ctrl-k" --header="${fzfHeader}" --header-lines=1 --prompt="${FUNCNAME[0]} ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
+		fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect=enter,ctrl-k --header="${fzfHeader}" --header-lines=1 --prompt="${FUNCNAME[0]} ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
 	)
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
@@ -392,9 +391,9 @@ function fz::man()
 	local binBatcat=
 
 	binBatcat=$( fz:api::command batcat bat )
-	[[ -n ${binBatcat} ]] && fzfPreview+=' | bash -c "col -bx | '${binBatcat}' --color=always --language=man --paging=never --style=plain"'
+	[[ -n ${binBatcat} ]] && fzfPreview+=" | bash -c \"col -bx | ${binBatcat} --color=always --language=man --paging=never --style=plain --terminal-width=\${FZF_PREVIEW_COLUMNS}\""
 
-	fz:api::fzf --preview="${fzfPreview}" --preview-window="right:70%" --prompt="${FUNCNAME[0]} > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
+	fz:api::fzf --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
 		| xargs -I {} printf 'man %s\n' {} \
 		| bash
@@ -492,7 +491,7 @@ function fz::ssh()
 
 	sshServer=$( bash --noprofile --norc -ic '
 		source <( fz:api::fzf --bash )
-		__fzf_list_hosts | fz:api::fzf --height="30%" --preview="'"${fzfPreview}"'" --preview-window="right:70%" --prompt="'"${FUNCNAME[0]}"' > " --query="'"${fzfQuery}"'" --reverse --select-1
+		__fzf_list_hosts | fz:api::fzf --height=30% --preview="'"${fzfPreview}"'" --preview-window=right:70% --prompt="'"${FUNCNAME[0]}"' > " --query="'"${fzfQuery}"'" --reverse --select-1
 	' 2>/dev/null )
 
 	[[ -z ${sshServer} ]] || ssh "${sshArgs[@]}" "${sshServer}" -- "${remoteCommand[@]}"
@@ -526,7 +525,7 @@ function fz::tmux()
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
 		| column -t \
-		| fz:api::fzf --expect="enter,ctrl-k" --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
+		| fz:api::fzf --expect=enter,ctrl-k --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
 	)
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
@@ -604,9 +603,9 @@ function fz:core::commands()
 
 	while IFS= read -r fn ; do
 
-		cmd="${fn#fz::}"
+		cmd=${fn#fz::}
 
-		[[ "${cmd}" == "${cmd}":* ]] && continue            # skip nested functions (e.g. fz::git::help)
+		[[ ${cmd} == ${cmd}:* ]] && continue                # skip nested functions (e.g. fz::git::help)
 		command -v "${cmd}" &>/dev/null || continue         # keep only functions whose command is valid
 
 		printf '%s\n' "${cmd}"
@@ -686,7 +685,7 @@ function fz:core::dispatch()
 	local returnCode=0
 	local fzfPreview="$0 public:fz::{}::fz::help | awk '{ sub( /^    /, \"\" ) ; print }'"
 
-	arg=$( fz:api::fzf --preview="${fzfPreview}" --prompt="${APP_NAME} > " --query="${1:-}" --reverse --select-1 <<< "$( fz:core::commands )" )
+	arg=$( fz:api::fzf --height=30% --preview="${fzfPreview}" --preview-window=right:70% --prompt="${APP_NAME} > " --query="${1:-}" --reverse --select-1 <<< "$( fz:core::commands )" )
 
 	[[ -n ${arg} ]] && {
 
