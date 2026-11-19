@@ -214,11 +214,11 @@ source ~/.zshrc
 
 Available themes:
 
-- `Dracula` (default)
-- `Catppuccin Mocha`
-- `Monokai Extended Bright`
-- `Nord`
-- `Visual Studio Dark+`
+- [Dracula](https://draculatheme.com/) (default)
+- [Catppuccin](https://catppuccin.com/) Mocha
+- Monokai Extended Bright
+- [Nord](https://www.nordtheme.com/)
+- Visual Studio Dark+
 
 Set the `FZ_THEME` environment variable to choose a theme:
 
