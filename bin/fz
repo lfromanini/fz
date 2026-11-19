@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.2
+readonly VERSION=1.17.3
 
 ### commands
 ##################
@@ -104,8 +104,10 @@ function fz::git::add()
 
 function fz::git::branch()
 {
+	local fzfHeader=$'\n[ ENTER ] ..... switch to branch\n[ CTRL + D ] .. delete selected branch\n[ CTRL + N ] .. create a new branch from selected branch\n\n'
 	local fzfPreview=
 	local input=
+	local key=
 	local selection=
 
 	input=$( git for-each-ref --format='%(refname:short)%09%(objectname:short)%09%(committerdate:relative)%09%(refname)%09%(symref)' --sort=-committerdate refs/heads refs/remotes | awk -F '\t' '
@@ -128,27 +130,77 @@ function fz::git::branch()
 
 	fzfPreview="grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} | xargs git log --color=always --decorate --graph --max-count=100 --oneline | $( fz::git::getPager )"
 
-	selection=$( fz:api::fzf --delimiter=$'\t' --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
-	selection=${selection##*$'\t'}                          # extract the full Git reference from the last field
+	selection=$( fz:api::fzf --delimiter=$'\t' --expect=ctrl-d,ctrl-n,enter --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+
+	key=${selection%%$'\n'*}                                # extract the key pressed in fzf
+	selection=${selection#*$'\n'}                           # remove the key from the selection output
+	selection=${selection##*$'\t'}                          # extract the Git reference from the selected row
 
 	[[ -z ${selection} ]] && return 0
 
-	case ${selection} in
+	case ${key} in
+		ctrl-d)
+			fz::git::branch::delete "${selection}" ;;
+
+		ctrl-n)
+			fz::git::branch::new "${selection}" ;;
+
+		enter)
+			fz::git::branch::switch "${selection}" ;;
+	esac
+}
+
+function fz::git::branch::delete()
+{
+	local ref=$1
+	local branchName=${ref#refs/heads/}
+
+	case ${ref} in
 		refs/heads/*)
-			git switch -- "${selection#refs/heads/}"
+			fz:api::confirm "Delete local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branchName}${FZ_COLOR_RESET}" || return 0
+			git branch --delete -- "${branchName}"
 		;;
 
 		refs/remotes/*)
-			local remoteBranch=${selection#refs/remotes/}
+			local remote=${branchName#*/}
+			local remoteName=${branchName%%/*}
+
+			fz:api::confirm "Delete remote branch ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteName}/${remote}${FZ_COLOR_RESET}" || return 0
+			git push "${remoteName}" --delete "${remote}"
+		;;
+	esac
+}
+
+function fz::git::branch::new()
+{
+	local ref=$1
+	local branchName=${ref##*/}
+	local baseBranch=${ref#refs/heads/}
+	baseBranch=${baseBranch#refs/remotes/}
+
+	branchName=$( fz:api::fzf --header="Create new branch from [${FZ_COLOR_EMPHASIS}${baseBranch}${FZ_COLOR_RESET}]" --phony --print-query --prompt="${FUNCNAME[0]} > " --query="${branchName}" --reverse <<< "" )
+	branchName=${branchName%%$'\n'*}
+
+	[[ -z ${branchName} ]] || {
+		git check-ref-format --branch "${branchName}" >/dev/null || return $?
+		git switch --create "${branchName}" -- "${ref}"
+	}
+}
+
+function fz::git::branch::switch()
+{
+	local ref=$1
+
+	case ${ref} in
+		refs/heads/*)
+			git switch -- "${ref#refs/heads/}"
+		;;
+
+		refs/remotes/*)
+			local remoteBranch=${ref#refs/remotes/}
 			local localBranch=${remoteBranch#*/}
 
-			if git show-ref --quiet --verify "refs/heads/${localBranch}" ; then
-				fz:api::confirm "Local branch already exists ; switch to it ?\n\n\t${FZ_COLOR_EMPHASIS}${localBranch}${FZ_COLOR_RESET}" || return 0
-				git switch -- "${localBranch}"
-			else
-				fz:api::confirm "Create local branch tracking ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteBranch}${FZ_COLOR_RESET}" || return 0
-				git switch --create "${localBranch}" --track -- "${selection}"
-			fi
+			if git show-ref --quiet --verify "refs/heads/${localBranch}" ; then git switch -- "${localBranch}" ; else fz::git::branch::new "${ref}" ; fi
 		;;
 	esac
 }
@@ -215,7 +267,7 @@ function public:fz::git::fz::help()
 
 	        Commands:
 	            add               select files to stage
-	            branch            browse branches and switch to the selected branch
+	            branch            browse, switch, create (<CTRL> + <N>) or delete (<CTRL> + <D>) branches
 	            diff              browse changed files and inspect their diffs
 	            log               browse commits and inspect their details
 
@@ -590,8 +642,14 @@ function fz:api::confirm()
 	[[ ${answer} == Yes ]]
 }
 
-# treat fzf cancellation (130) as success to avoid triggering pipefail
-function fz:api::fzf() { fzf "$@" || (( $? == 130 )) ; }
+function fz:api::fzf()
+{
+	# treat fzf cancellation (130) as success to avoid triggering pipefail
+	fzf "$@" || {
+		local returnCode=$?
+		(( returnCode == 130 )) || return ${returnCode}
+	}
+}
 
 ### core functions
 ##################

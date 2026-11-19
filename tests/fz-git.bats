@@ -56,11 +56,33 @@ function setup()
 
 	git branch feature
 
-	setFzfMock git branch $'feature\tabc123\t2 hours ago\trefs/heads/feature'
+	setFzfMock git branch $'enter\nfeature\tabc123\t2 hours ago\trefs/heads/feature'
 	run bash "${FZ_BIN}" git branch
 
 	[[ ${status} == 0 ]]
 	[[ $( git branch --show-current ) == "feature" ]]
+}
+
+@test "fz git ......................... # [ branch ] creates a new branch" {
+
+    git branch feature
+
+    setFzfMock git branch $'ctrl-n\nfeature\tabc123\t2 hours ago\trefs/heads/feature' new-feature-branch
+    run bash "${FZ_BIN}" git branch
+
+    [[ ${status} == 0 ]]
+    [[ $( git branch --show-current ) == "new-feature-branch" ]]
+}
+
+@test "fz git ......................... # [ branch ] deletes selected local branch" {
+
+	git branch feature
+
+	setFzfMock git branch $'ctrl-d\nfeature\tabc123\t2 hours ago\trefs/heads/feature' Yes
+	run bash "${FZ_BIN}" git branch
+
+	[[ ${status} == 0 ]]
+	[[ -z $( git branch --list feature ) ]]
 }
 
 @test "fz git ......................... # [ branch ] handles fzf cancellation" {

@@ -56,7 +56,7 @@ Run `fz git` without arguments to interactively select a Git command, or specify
 Available commands:
 
 - `add`: Interactively select files to stage.
-- `branch`: Browse local and remote branches and switch to the selected branch. Remote branches can be checked out as local tracking branches.
+- `branch`: Browse local and remote branches, switch to the selected branch, create a new branch using `<CTRL> + <N>` or delete the selected branch using `<CTRL> + <D>`. **Deleting a remote branch removes it from the remote repository.**
 - `diff`: Browse changed files and inspect their diffs.
 - `log`: Browse commits and inspect commit details.
 
