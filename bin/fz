@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.3
+readonly VERSION=1.17.4
 
 ### commands
 ##################
@@ -654,6 +654,57 @@ function fz:api::fzf()
 ### core functions
 ##################
 
+function fz:core::check()
+{
+	local -r MIN_VERSION_BASH=4.3
+	local -r MIN_VERSION_FZF=0.60
+
+	local fzfVersion=
+
+	fz:core::check::gte "${BASH_VERSION}" "${MIN_VERSION_BASH}" || {
+		local returnCode=$?
+
+		printf '[%s]: Bash %s or newer is required (current: %s)\n' "${APP_NAME} error" "${MIN_VERSION_BASH}" "${BASH_VERSION}" >&2
+		return ${returnCode}
+	}
+
+	command -v fzf &>/dev/null || {
+		fz:core::theme
+		printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}" >&2
+
+		return 127
+	}
+
+	fzfVersion=$( fzf --version 2>/dev/null )
+	fzfVersion=${fzfVersion%% *}
+
+	fz:core::check::gte "${fzfVersion}" "${MIN_VERSION_FZF}" || {
+		local returnCode=$?
+
+		fz:core::theme
+		printf '[%s]: fzf %s or newer is required (current: %s).\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${MIN_VERSION_FZF}${FZ_COLOR_RESET}" "${fzfVersion}" >&2
+		return ${returnCode}
+	}
+}
+
+function fz:core::check::gte()
+{
+	# compare major.minor versions (0: current >= minimum, 1: lower, 2: invalid)
+	local currentMajor=
+	local currentMinor=
+	local minimalMajor=
+	local minimalMinor=
+
+	IFS=. read -r currentMajor currentMinor _ <<< "${1#[vV]}"
+	IFS=. read -r minimalMajor minimalMinor _ <<< "${2#[vV]}"
+
+	[[ ${currentMajor} =~ ^[0-9]+$ && ${currentMinor} =~ ^[0-9]+$ && ${minimalMajor} =~ ^[0-9]+$ && ${minimalMinor} =~ ^[0-9]+$ ]] || return 2
+
+	(( 10#${currentMajor} < 10#${minimalMajor} )) && return 1
+	(( 10#${currentMajor} > 10#${minimalMajor} )) && return 0
+	(( 10#${currentMinor} >= 10#${minimalMinor} ))
+}
+
 function fz:core::commands()
 {
 	local fn=
@@ -843,13 +894,7 @@ function fz:core::main()
 		;;
 
 		*)
-			command -v fzf &>/dev/null || {
-				fz:core::theme
-				printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}"
-
-				return 127
-			}
-
+			fz:core::check || return $?                     # validate runtime requirements
 			fz:core::dispatch "$@"
 		;;
 	esac
@@ -937,4 +982,4 @@ function fz:core::theme()
 
 function fz:core::version() { printf '%s %s\n' "${APP_NAME}" "${VERSION}" ; }
 
-fz:core::main "$@"
+[[ ${BASH_SOURCE[0]} != "$0" ]] || fz:core::main "$@"

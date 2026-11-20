@@ -9,10 +9,17 @@ function fzf()
 {
 	local output=
 
-	[[ ${1:-} == --bash ]] && {
-		printf '%s\n' '__fzf_list_hosts() { printf "myServer" ; }'
-		return 0
-	}
+	case ${1:-} in
+		--bash)
+			printf '%s\n' '__fzf_list_hosts() { printf "myServer" ; }'
+			return 0
+		;;
+
+		--version)
+			printf '%s\n' "${FZF_MOCK_VERSION:-0.75 (0.75.0)}"
+			return 0
+		;;
+	esac
 
 	IFS= read -d '' -r output < "${FZF_MOCK_OUTPUT_FILE}" || :
 	perl -0777 -i -pe 's/\A[^\0]*\0//' "${FZF_MOCK_OUTPUT_FILE}"
@@ -24,6 +31,8 @@ export -f fzf
 
 function setFzfMock()
 {
+	export FZF_MOCK_VERSION
+
 	export FZF_MOCK_OUTPUT_FILE=
 	FZF_MOCK_OUTPUT_FILE=$( mktemp "${BATS_TEST_TMPDIR}/bats.XXXXXX" )
 

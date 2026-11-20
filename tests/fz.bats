@@ -40,16 +40,82 @@ function setup() { load "support/common.bash" ; }
 	[[ ${output} == "fz ${version}" ]]
 }
 
+@test "fz ............................. # valid requirements" {
+
+	setFzfMock
+	run bash "${FZ_BIN}"
+
+	[[ ${status} == 0 ]]
+}
+
+@test "source fz ...................... # Bash version below minimum" {
+
+	run bash -c '
+		source "${FZ_BIN}"
+		fz:core::check::gte "4.2.99" "4.3"
+	'
+
+	[[ ${status} == 1 ]]
+}
+
+@test "source fz ...................... # Bash 4.3 minimum" {
+
+	run bash -c '
+		source "${FZ_BIN}"
+		fz:core::check::gte "4.3.0" "4.3"
+	'
+
+	[[ ${status} == 0 ]]
+}
+
+@test "source fz ...................... # Bash 5.3 release suffix" {
+
+	run bash -c '
+		source "${FZ_BIN}"
+		fz:core::check::gte "5.3.20(1)-release" "4.3"
+	'
+
+	[[ ${status} == 0 ]]
+}
+
+@test "fz ............................. # fzf version below minimum" {
+
+	FZF_MOCK_VERSION="0.59.9 (0.59.9)"
+	setFzfMock
+	run bash "${FZ_BIN}"
+
+	[[ ${status} == 1 ]]
+	[[ $( stripColors "${output}" ) == *"fzf 0.60 or newer is required"* ]]
+}
+
+@test "fz ............................ # invalid fzf version" {
+
+	FZF_MOCK_VERSION="invalid"
+	setFzfMock
+	run bash "${FZ_BIN}"
+
+	[[ ${status} == 2 ]]
+	[[ $( stripColors "${output}" ) == *"fzf 0.60 or newer is required"* ]]
+}
+
+@test "fz ............................ # fzf with patch version" {
+
+	# shellcheck disable=SC2034     # SC2034: foo appears unused. Verify it or export it.
+	FZF_MOCK_VERSION="0.60.3 (0.60.3)"
+	setFzfMock
+	run bash "${FZ_BIN}"
+
+	[[ ${status} == 0 ]]
+}
+
 @test "fz ............................. # fzf not installed" {
 
 	function command()
 	{
-		[[ $1 == -v ]] && case $2 in
-			fzf)
-				printf "%s: command not found\n" "$2" >&2
-				return 1
-			;;
-		esac
+		[[ $1 == -v && $2 == fzf ]] && {
+			printf "%s: command not found\n" "$2" >&2
+			return 1
+		}
 
 		builtin command "$@"
 	}
