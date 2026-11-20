@@ -40,7 +40,7 @@ Run `fz` followed by a valid command. Run `fz --help` for a complete list of com
 
 #### env [QUERY]
 
-Browse environment variables and their values. Press `<CTRL> + <A>` or `<CTRL> + <SPACE>` to select all filtered results.
+Browse environment variables and their values. Press `<TAB>` to select multiple variables, or `<CTRL> + <A>` / `<CTRL> + <SPACE>` to select all filtered results.
 
 ```bash
 fz env
@@ -55,7 +55,7 @@ Run `fz git` without arguments to interactively select a Git command, or specify
 
 Available commands:
 
-- `add`: Interactively select files to stage.
+- `add`: Interactively select files to stage. Press `<TAB>` to select multiple files.
 - `branch`: Browse local and remote branches, switch to the selected branch, create a new branch using `<CTRL> + <N>` or delete the selected branch using `<CTRL> + <D>`. **Deleting a remote branch removes it from the remote repository.**
 - `diff`: Browse changed files and inspect their diffs.
 - `log`: Browse commits and inspect commit details.
