@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.4
+readonly VERSION=1.17.5
 
 ### commands
 ##################
@@ -260,7 +260,53 @@ function fz::git::log()
 	[[ -z ${hash} ]] || git show --color=always "${hash}"
 }
 
-function public:fz::git::fz::completion() { printf '%s\n' add branch diff log ; }
+function fz::git::stash()
+{
+	local fzfHeader=$'\n[ ENTER ] ......................... apply stash\n[ CTRL + D ] ...................... drop stash\n[ CTRL + N ] ...................... create new stash\n[ CTRL + P ] ...................... pop stash\n\n'
+	local fzfPreview=
+	local input=
+	local key=
+	local selection=
+
+	input=$( git stash list --format="%gd%x09%cr%x09%gs" )
+	fzfPreview="[[ -z {1} ]] || git stash show --color=always --stat {1} | $( fz::git::getPager )"
+
+	selection=$( fz:api::fzf --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n,ctrl-p --header="${fzfHeader}" --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+
+	key=${selection%%$'\n'*}
+	selection=${selection#*$'\n'}
+	[[ ${key} == "${selection}" ]] && selection=            # clear selection when no item was selected
+	selection=${selection%%$'\t'*}
+
+	case ${key} in
+		enter)
+			[[ -z ${selection} ]] || git stash apply "${selection}" ;;
+
+		ctrl-d)
+			[[ -z ${selection} ]] || {
+				fz:api::confirm "Drop stash ?\n\n\t${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET}" || return 0
+				git stash drop "${selection}"
+			}
+		;;
+
+		ctrl-n)
+			local returnCode=0
+
+			# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
+			input=$( fzf --header="Create a new stash (optional message)" --phony --print-query --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "" ) || returnCode=$?
+			input=${input%%$'\n'*}
+
+			(( returnCode == 0 )) || return 0               # ESC pressed
+
+			if [[ -n ${input} ]] ; then git stash push --include-untracked --message "${input}" ; else git stash push --include-untracked ; fi
+		;;
+
+		ctrl-p)
+			[[ -z ${selection} ]] || git stash pop "${selection}" ;;
+	esac
+}
+
+function public:fz::git::fz::completion() { printf '%s\n' add branch diff log stash ; }
 
 function public:fz::git::fz::help()
 {
@@ -273,12 +319,14 @@ function public:fz::git::fz::help()
 	            branch            browse, switch, create (<CTRL> + <N>) or delete (<CTRL> + <D>) branches
 	            diff              browse changed files and inspect their diffs
 	            log               browse commits and inspect their details
+	            stash             browse, apply, pop, drop or create stashes
 
 	        Examples:
 	            ${APP_NAME} git add
 	            ${APP_NAME} git branch
 	            ${APP_NAME} git diff
 	            ${APP_NAME} git log
+	            ${APP_NAME} git stash
 	HEREDOC
 }
 

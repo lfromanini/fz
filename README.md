@@ -34,7 +34,7 @@ fffffffff            zzzzzzzzzzzzzzzzz
 
 ## Usage
 
-Run `fz` followed by a valid command. Run `fz --help` for a complete list of commands and options.
+Run `fz` with or without a command. Run `fz --help` for a complete list of commands and options.
 
 ### Commands
 
@@ -59,6 +59,7 @@ Available commands:
 - `branch`: Browse local and remote branches, switch to the selected branch, create a new branch using `<CTRL> + <N>` or delete the selected branch using `<CTRL> + <D>`. **Deleting a remote branch removes it from the remote repository.**
 - `diff`: Browse changed files and inspect their diffs.
 - `log`: Browse commits and inspect commit details.
+- `stash`: Browse existing stashes and inspect their contents. Press `<ENTER>` to apply, `<CTRL> + <P>` to pop, `<CTRL> + <D>` to drop (requires confirmation), or `<CTRL> + <N>` to create a new stash. New stashes include untracked files and optionally accept a message.
 
 **Requires git and a Git working tree.**
 
@@ -77,6 +78,9 @@ fz git diff
 
 # browse commits and inspect their details
 fz git log
+
+# browse, apply, pop, drop or create stashes
+fz git stash
 ```
 
 You can pass a query to filter the results:
@@ -86,6 +90,7 @@ fz git add README
 fz git branch feature
 fz git diff README
 fz git log initial
+fz git stash refactor
 ```
 
 #### grep [QUERY]

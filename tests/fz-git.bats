@@ -131,3 +131,88 @@ function setup()
 	[[ ${status} == 0 ]]
 	[[ -z ${output} ]]
 }
+
+@test "fz git ......................... # [ stash ] applies selected stash" {
+
+	printf 'modified content\n' > file.txt
+	git stash push -qm "test stash"
+
+	setFzfMock git stash $'enter\nstash@{0}\t2 hours ago\tOn master: test stash'
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ $( cat file.txt ) == "modified content" ]]
+	[[ $( git stash list | wc -l ) == 1 ]]
+}
+
+@test "fz git ......................... # [ stash ] pops selected stash" {
+
+	printf 'modified content\n' > file.txt
+	git stash push -qm "test stash"
+
+	setFzfMock git stash $'ctrl-p\nstash@{0}\t2 hours ago\tOn master: test stash'
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ $( cat file.txt ) == "modified content" ]]
+	[[ $( git stash list | wc -l ) == 0 ]]
+}
+
+@test "fz git ......................... # [ stash ] drops selected stash" {
+
+	printf 'modified content\n' > file.txt
+	git stash push -qm "test stash"
+
+	setFzfMock git stash $'ctrl-d\nstash@{0}\t2 hours ago\tOn master: test stash' Yes
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ $( git stash list | wc -l ) == 0 ]]
+	[[ $( cat file.txt ) == "initial content" ]]
+}
+
+@test "fz git ......................... # [ stash ] handles drop cancellation" {
+
+	printf 'modified content\n' > file.txt
+	git stash push -qm "test stash"
+
+	setFzfMock git stash $'ctrl-d\nstash@{0}\t2 hours ago\tOn master: test stash' No
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ $( git stash list | wc -l ) == 1 ]]
+	[[ $( cat file.txt ) == "initial content" ]]
+}
+
+@test "fz git ......................... # [ stash ] creates stash with message" {
+
+	printf 'modified content\n' > file.txt
+
+	setFzfMock git stash $'ctrl-n\n' "new stash message"
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ $( git stash list --format='%gs' ) == *"new stash message"* ]]
+	[[ $( cat file.txt ) == "initial content" ]]
+}
+
+@test "fz git ......................... # [ stash ] creates stash without message" {
+
+	printf 'modified content\n' > file.txt
+
+	setFzfMock git stash $'ctrl-n\n' ""
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ $( git stash list | wc -l ) == 1 ]]
+	[[ $( cat file.txt ) == "initial content" ]]
+}
+
+@test "fz git ......................... # [ stash ] handles fzf cancellation" {
+
+	setFzfMock git stash
+	run bash "${FZ_BIN}" git stash
+
+	[[ ${status} == 0 ]]
+	[[ -z ${output} ]]
+}
