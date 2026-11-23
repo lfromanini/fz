@@ -74,15 +74,15 @@ The following functions provide common utilities for internal `fz` functions.
 
   Resolves the first available command from the given list and prints its resolved value to standard output. Before resolving each candidate, it removes any alias or shell function with the same name to ensure that `command -v` does not resolve to either of them. Candidates are checked in order, and the search stops at the first successful match. If no command is found, an empty line is printed.
 
-- `fz:api::confirm [MESSAGE]`
+- `fz:api::fzf [ARG ...]`
+
+  Wraps `fzf`, forwarding all arguments and treating exit status `130` (cancellation) as success. This prevents user cancellation from triggering `pipefail` in calling pipelines.
+
+- `fz:api::fzf::confirm [MESSAGE]`
 
   Prompts the user to confirm an action using `fzf`, presenting `Yes` and `No` options. `MESSAGE` is displayed as the prompt header and defaults to `Proceed ?` when omitted. The calling function's name is used as the prompt prefix.
 
   Returns success if the user selects `Yes`, and failure otherwise.
-
-- `fz:api::fzf [ARG ...]`
-
-  Wraps `fzf`, forwarding all arguments and treating exit status `130` (cancellation) as success. This prevents user cancellation from triggering `pipefail` in calling pipelines.
 
 - `fz:api::fzf::header [KEYBIND ... DESCRIPTION --] ...`
 
