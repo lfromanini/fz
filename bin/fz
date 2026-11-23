@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.5
+readonly VERSION=1.17.6
 
 ### commands
 ##################
@@ -857,10 +857,7 @@ function fz:core::dispatch()
 		fz:core::theme
 
 		fz:core::hook onStart "${arg}"
-
-		fz::"${arg}" "$@"
-		returnCode=$?
-
+		fz::"${arg}" "$@" || returnCode=$?
 		fz:core::hook onExit "${arg}"
 	}
 
