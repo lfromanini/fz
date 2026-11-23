@@ -1,6 +1,6 @@
 # fz
 
-[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Shell](https://img.shields.io/badge/shell-bash-orange?logo=gnu-bash&logoColor=white)]()
 [![Latest Tag](https://img.shields.io/github/v/tag/lfromanini/fz)](https://github.com/lfromanini/fz/tags)
 [![GitHub Stars](https://img.shields.io/github/stars/lfromanini/fz?style=social)](https://github.com/lfromanini/fz/stargazers)
@@ -259,4 +259,5 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 
 ## LICENSE
 
-The [MIT License](https://github.com/lfromanini/fz/blob/main/LICENSE) (MIT)
+Licensed under the GNU General Public License v3.0.
+See [LICENSE](LICENSE) for details.
