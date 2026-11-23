@@ -293,7 +293,7 @@ function fz::git::stash()
 			local returnCode=0
 
 			# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
-			input=$( fzf --header="Create a new stash (optional message)" --phony --print-query --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "" ) || returnCode=$?
+			input=$( fzf --header="Create a new stash (optional message)" --phony --print-query --prompt="${FUNCNAME[0]} > " --reverse <<< "" ) || returnCode=$?
 			input=${input%%$'\n'*}
 
 			(( returnCode == 0 )) || return 0               # ESC pressed
