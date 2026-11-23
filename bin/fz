@@ -14,10 +14,12 @@ readonly VERSION=1.17.6
 
 function fz::env()
 {
-	local fzfHeader=$'\n[ TAB ] ........................... select / deselect\n[ CTRL + A ] / [ CTRL + SPACE ] ... select all\n\n'
+	local fzfHeader=
 	local idx=
 	local input=
 	local selection=
+
+	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" -- "CTRL + A" "CTRL + SPACE" "select all" )
 
 	input=$( for idx in "${!__FZ_ENV_SNAPSHOT[@]}" ; do printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${__FZ_ENV_SNAPSHOT[${idx}]}" ; done | sort )
 	selection=$( fz:api::fzf --accept-nth=1 --ansi --bind=ctrl-a:select-all,ctrl-space:select-all --delimiter="=" --header="${fzfHeader}" --multi --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
@@ -77,11 +79,13 @@ function fz::git()
 function fz::git::add()
 {
 	local cmdPreview="nl -ba"
-	local fzfHeader=$'\n[ TAB ] ........................... select / deselect\n\n'
+	local fzfHeader=
 	local fzfPreview=
 	local binBatcat=
 	local input=
 	local selection=
+
+	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
 
 	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers --terminal-width=\${FZF_PREVIEW_COLUMNS}"
@@ -107,11 +111,13 @@ function fz::git::add()
 
 function fz::git::branch()
 {
-	local fzfHeader=$'\n[ ENTER ] ......................... switch to branch\n[ CTRL + D ] ...................... delete selected branch\n[ CTRL + N ] ...................... create a new branch from selected branch\n\n'
+	local fzfHeader=
 	local fzfPreview=
 	local input=
 	local key=
 	local selection=
+
+	fzfHeader=$( fz:api::fzf::header ENTER "switch to branch" -- "CTRL + D" "delete selected branch" -- "CTRL + N" "create a new branch from selected branch" )
 
 	input=$( git for-each-ref --format='%(refname:short)%09%(objectname:short)%09%(committerdate:relative)%09%(refname)%09%(symref)' --sort=-committerdate refs/heads refs/remotes | awk -F '\t' '
 		$5 == "" {
@@ -262,11 +268,13 @@ function fz::git::log()
 
 function fz::git::stash()
 {
-	local fzfHeader=$'\n[ ENTER ] ......................... apply stash\n[ CTRL + D ] ...................... drop stash\n[ CTRL + N ] ...................... create new stash\n[ CTRL + P ] ...................... pop stash\n\n'
+	local fzfHeader=
 	local fzfPreview=
 	local input=
 	local key=
 	local selection=
+
+	fzfHeader=$( fz:api::fzf::header ENTER "apply stash" -- "CTRL + D" "drop stash" -- "CTRL + N" "create new stash" -- "CTRL + P" "pop stash" )
 
 	input=$( git stash list --format="%gd%x09%cr%x09%gs" )
 	fzfPreview="[[ -z {1} ]] || git stash show --color=always --stat {1} | $( fz::git::getPager )"
@@ -425,7 +433,7 @@ function fz::kill()
 	signal=${signal^^}
 	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
 
-	fzfHeader=$'\n[ ENTER ] ......................... kill '${signal}$'\n[ CTRL + K ] ...................... kill -SIGKILL\n[ CTRL + R ] ...................... refresh process list\n\n'
+	fzfHeader=$( fz:api::fzf::header ENTER "kill ${signal}" -- "CTRL + K" "kill -SIGKILL" -- "CTRL + R" "refresh process list" )
 
 	selection=$(
 		fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect=enter,ctrl-k --header="${fzfHeader}" --header-lines=1 --prompt="${FUNCNAME[0]} ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
@@ -619,10 +627,13 @@ function public:fz::ssh::fz::help()
 
 function fz::tmux()
 {
+	local fzfHeader=
 	local selection=
 	local key=
 	local selectedType=
 	local selectedTarget=
+
+	fzfHeader=$( fz:api::fzf::header ENTER "attach / switch" -- "CTRL + K" "kill" )
 
 	selection=$( {
 			tmux list-sessions -F "session #S _ #{session_windows}w"
@@ -630,7 +641,7 @@ function fz::tmux()
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
 		| column -t \
-		| fz:api::fzf --expect=enter,ctrl-k --header=$'\n[ Enter ] ..... attach / switch\n[ CTRL + K ] .. kill\n\n' --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
+		| fz:api::fzf --expect=enter,ctrl-k --header="${fzfHeader}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
 	)
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
@@ -686,7 +697,7 @@ function fz:api::command()
 
 function fz:api::confirm()
 {
-	local msg=${1:-"Proceed?"}
+	local msg=${1:-"Proceed ?"}
 	local answer=
 
 	printf -v msg '%b\n\n' "${msg}"
@@ -702,6 +713,41 @@ function fz:api::fzf()
 		local returnCode=$?
 		(( returnCode == 130 )) || return ${returnCode}
 	}
+}
+
+function fz:api::fzf::header()
+{
+	# generate aligned FZF header lines using syntax: KEYBIND [KEYBIND...] DESCRIPTION --
+	while (( $# > 0 )) ; do
+
+		local -a args=( )
+
+		while (( $# > 0 )) && [[ ${1} != -- ]] ; do
+			args+=( "$1" )
+			shift
+		done
+
+		[[ ${1:-} == -- ]] && shift
+
+		(( ${#args[@]} >= 2 )) || return 1
+
+		local description=${args[${#args[@]}-1]}
+		unset 'args[${#args[@]}-1]'
+
+		local keybinds=
+		local keybind= ; for keybind in "${args[@]}" ; do
+			keybinds+="${keybinds:+ ] / }[ ${keybind}"
+		done
+		keybinds+=" ]"
+
+		local padding=
+		printf -v padding '%*s' "$(( 40 - ${#keybinds} ))" ""
+		padding=${padding// /.}
+
+		printf '\n%s %s %s' "${keybinds}" "${padding}" "${description}"
+	done
+
+	printf '\n '                                            # trailing space prevents command substitution from stripping the final newline
 }
 
 ### core functions

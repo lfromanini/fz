@@ -76,13 +76,21 @@ The following functions provide common utilities for internal `fz` functions.
 
 - `fz:api::confirm [MESSAGE]`
 
-  Prompts the user to confirm an action using `fzf`, presenting `Yes` and `No` options. `MESSAGE` is displayed as the prompt header and defaults to `Proceed?` when omitted. The calling function's name is used as the prompt prefix.
+  Prompts the user to confirm an action using `fzf`, presenting `Yes` and `No` options. `MESSAGE` is displayed as the prompt header and defaults to `Proceed ?` when omitted. The calling function's name is used as the prompt prefix.
 
   Returns success if the user selects `Yes`, and failure otherwise.
 
 - `fz:api::fzf [ARG ...]`
 
   Wraps `fzf`, forwarding all arguments and treating exit status `130` (cancellation) as success. This prevents user cancellation from triggering `pipefail` in calling pipelines.
+
+- `fz:api::fzf::header [KEYBIND ... DESCRIPTION --] ...`
+
+  Generates aligned FZF header lines using the `KEYBIND [KEYBIND...] DESCRIPTION --` syntax. Multiple keybinds can be grouped for the same description. Each group must contain at least one keybind and a description. The trailing `--` is optional for the last group.
+
+  Keybinds are displayed separated by ` / `, and dots are automatically generated to align descriptions.
+
+  Returns the formatted header through standard output.
 
 ### Completions
 
