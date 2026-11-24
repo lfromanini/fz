@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.6
+readonly VERSION=1.17.7
 
 ### commands
 ##################
@@ -111,8 +111,8 @@ function fz::git::add()
 
 function fz::git::branch()
 {
+	local fzfPreview="grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} | xargs git log --color=always --decorate --graph --max-count=100 --oneline"
 	local fzfHeader=
-	local fzfPreview=
 	local input=
 	local key=
 	local selection=
@@ -136,8 +136,6 @@ function fz::git::branch()
 			}
 		}
 	' )
-
-	fzfPreview="grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} | xargs git log --color=always --decorate --graph --max-count=100 --oneline | $( fz::git::getPager )"
 
 	selection=$( fz:api::fzf --delimiter=$'\t' --expect=ctrl-d,ctrl-n,enter --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
@@ -230,25 +228,9 @@ function fz::git::diff()
 
 function fz::git::getPager()
 {
-	local pager=
-	pager=$( git config --get core.pager || : )
-
-	case $( basename -- "${pager%% *}" ) in                 # extract the executable name from the pager command
-		delta|difft)
-			pager="${pager} --width=\${FZF_PREVIEW_COLUMNS}"
-		;;
-
-		batcat|bat)
-			pager="awk 'NR == 1 { print substr( \$3, 3 ) ; exit }' | xargs ${pager} --color=always --terminal-width=\${FZF_PREVIEW_COLUMNS}"
-			[[ " ${pager} " =~ [[:space:]]--diff([[:space:]]|$) ]] || pager="${pager} --diff"
-		;;
-
-		*)
-			pager="COLUMNS=\${FZF_PREVIEW_COLUMNS} ${pager:-cat}"
-		;;
-	esac
-
-	printf '%s' "${pager}"
+	local pager=${GIT_PAGER:-$( git config --get core.pager || : )}
+	# shellcheck disable=SC2016                             # SC2016: Expressions don't expand in single quotes, use double quotes for that.
+	printf 'COLUMNS=${FZF_PREVIEW_COLUMNS:-${COLUMNS}} %s' "${pager:-cat}"
 }
 
 function fz::git::log()
@@ -268,8 +250,8 @@ function fz::git::log()
 
 function fz::git::stash()
 {
+	local fzfPreview="[[ -z {1} ]] || git stash show --color=always --stat {1}"
 	local fzfHeader=
-	local fzfPreview=
 	local input=
 	local key=
 	local selection=
@@ -277,8 +259,6 @@ function fz::git::stash()
 	fzfHeader=$( fz:api::fzf::header ENTER "apply stash" -- "CTRL + D" "drop stash" -- "CTRL + N" "create new stash" -- "CTRL + P" "pop stash" )
 
 	input=$( git stash list --format="%gd%x09%cr%x09%gs" )
-	fzfPreview="[[ -z {1} ]] || git stash show --color=always --stat {1} | $( fz::git::getPager )"
-
 	selection=$( fz:api::fzf --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n,ctrl-p --header="${fzfHeader}" --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
 
 	key=${selection%%$'\n'*}
