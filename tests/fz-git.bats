@@ -216,3 +216,131 @@ function setup()
 	[[ ${status} == 0 ]]
 	[[ -z ${output} ]]
 }
+
+@test "fz git ......................... # [ tag ] checks out selected tag" {
+
+	git tag v1.0.0
+
+	setFzfMock git tag $'enter\nv1.0.0'
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	[[ $( git rev-parse HEAD ) == "$( git rev-parse v1.0.0 )" ]]
+	[[ -z $( git branch --show-current ) ]]
+}
+
+@test "fz git ......................... # [ tag ] deletes selected local tag" {
+
+	git tag v1.0.0
+
+	setFzfMock git tag $'ctrl-d\nv1.0.0' local
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	bats_require_minimum_version 1.5.0
+	run ! git show-ref --verify --quiet refs/tags/v1.0.0
+}
+
+@test "fz git ......................... # [ tag ] deletes selected remote tag" {
+
+	local remote="${BATS_TEST_TMPDIR}/remote.git"
+
+	git init --bare -q "${remote}"
+	git remote add origin "${remote}"
+
+	git tag v1.0.0
+	git push -q origin v1.0.0
+
+	setFzfMock git tag $'ctrl-d\nv1.0.0' remote/origin
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	[[ -z $( git ls-remote --tags origin refs/tags/v1.0.0 ) ]]
+}
+
+@test "fz git ......................... # [ tag ] ignores tag not found on selected remote" {
+
+	local remote="${BATS_TEST_TMPDIR}/remote.git"
+
+	git init --bare -q "${remote}"
+	git remote add origin "${remote}"
+
+	git tag v1.0.0
+
+	setFzfMock git tag $'ctrl-d\nv1.0.0' remote/origin
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	[[ -n $( git show-ref --verify refs/tags/v1.0.0 ) ]]
+	[[ -z $( git ls-remote --tags origin refs/tags/v1.0.0 ) ]]
+}
+
+@test "fz git ......................... # [ tag ] aborts when remote tag lookup fails" {
+
+	local remote="${BATS_TEST_TMPDIR}/missing.git"
+
+	git remote add origin "${remote}"
+	git tag v1.0.0
+
+	setFzfMock git tag $'ctrl-d\nv1.0.0' remote/origin
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} != 0 ]]
+	[[ ${output} == *"failed to check tag"* ]]
+	[[ -n $( git show-ref --verify refs/tags/v1.0.0 ) ]]
+}
+
+@test "fz git ......................... # [ tag ] creates lightweight tag pointing to selected commit" {
+
+	local remote="${BATS_TEST_TMPDIR}/remote.git"
+	local commit=
+
+	git init --bare -q "${remote}"
+	git remote add origin "${remote}"
+
+	git tag v0.9.0
+
+	printf 'second commit\n' > file.txt
+	git add file.txt
+	git commit -qm "Second commit"
+
+	commit=$( git rev-list --max-count=2 HEAD | tail -n 1 )
+
+	setFzfMock git tag $'ctrl-n\nv0.9.0' "v1.0.0" "" "${commit}" remote/origin
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	[[ $( git cat-file -t refs/tags/v1.0.0 ) == commit ]]
+	[[ $( git rev-parse v1.0.0 ) == "${commit}" ]]
+	[[ -n $( git ls-remote --tags origin refs/tags/v1.0.0 ) ]]
+}
+
+@test "fz git ......................... # [ tag ] creates annotated tag with message" {
+
+	local remote="${BATS_TEST_TMPDIR}/remote.git"
+	local commit=
+
+	git init --bare -q "${remote}"
+	git remote add origin "${remote}"
+
+	git tag v0.9.0
+	commit=$( git rev-parse HEAD )
+
+	setFzfMock git tag $'ctrl-n\nv0.9.0' "v1.0.0" "Release 1.0.0" "${commit}" remote/origin
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	[[ $( git cat-file -t refs/tags/v1.0.0 ) == tag ]]
+	[[ $( git for-each-ref --format='%(contents:subject)' refs/tags/v1.0.0 ) == "Release 1.0.0" ]]
+	[[ $( git rev-parse 'v1.0.0^{}' ) == "${commit}" ]]
+	[[ -n $( git ls-remote --tags origin refs/tags/v1.0.0 ) ]]
+}
+
+@test "fz git ......................... # [ tag ] handles fzf cancellation" {
+
+	setFzfMock git tag
+	run bash "${FZ_BIN}" git tag
+
+	[[ ${status} == 0 ]]
+	[[ -z ${output} ]]
+}
