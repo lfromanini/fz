@@ -60,10 +60,7 @@ function fz::git()
 	git rev-parse --is-inside-work-tree &>/dev/null || {
 		local returnCode=$?
 
-		printf '[%s]: %s: not a git repository (or any parent up to mount point /)\n' \
-			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
-			"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}"
-
+		printf '[%s]: %s: not a git repository (or any parent up to mount point /)\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" >&2
 		return ${returnCode}
 	}
 
@@ -294,7 +291,123 @@ function fz::git::stash()
 	esac
 }
 
-function public:fz::git::fz::completion() { printf '%s\n' add branch diff log stash ; }
+function fz::git::tag()
+{
+	local fzfPreview="git show --color=always --no-ext-diff --stat --decorate=short refs/tags/{1}"
+	local fzfHeader=
+	local input=
+	local selection=
+	local key=
+
+	fzfHeader=$( fz:api::fzf::header ENTER "checkout tag" -- "CTRL + D" "delete tag" -- "CTRL + N" "create new tag" )
+
+	input=$( git for-each-ref --color=always --format="%(color:cyan)%(refname:short)%(color:reset)%09%(subject)" --sort=-version:refname refs/tags )
+	selection=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+
+	key=${selection%%$'\n'*}
+	selection=${selection#*$'\n'}
+
+	[[ -z ${selection} ]] && return 0
+
+	case ${key} in
+		enter)
+			git switch --detach "${selection}" ;;
+
+		ctrl-d)
+			fz::git::tag::delete "${selection}" ;;
+
+		ctrl-n)
+			fz::git::tag::new "${selection}" ;;
+	esac
+}
+
+function fz::git::tag::delete()
+{
+	local tag=$1
+	local fzfHeader=
+	local input=
+	local selection=
+
+	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
+
+	input=$( printf '%s\n' "local" "$( git remote | awk 'NF { print "remote/" $0 }' )" )
+	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${FUNCNAME[0]} > select sources to delete tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} > " --reverse <<< "${input}" )
+
+	local target= ; while IFS= read -r target ; do
+		case ${target} in
+			local)
+				git tag --delete -- "${tag}" ;;
+
+			remote/*)
+				target=${target#remote/}
+
+				if git ls-remote --exit-code --refs "${target}" "refs/tags/${tag}" &>/dev/null ; then
+
+    				git push "${target}" --delete "${tag}"
+
+				else
+    				local returnCode=$?
+				    (( returnCode == 2 )) && continue       # tag not found on selected remote, ignore
+
+					printf '[%s]: %s: failed to check tag "%s" on remote "%s".\n' \
+						"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
+						"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" \
+						"${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET}" \
+						"${FZ_COLOR_EMPHASIS}${target}${FZ_COLOR_RESET}" >&2
+
+					return ${returnCode}
+				fi
+			;;
+		esac
+	done <<< "${selection}"
+}
+
+function fz::git::tag::new()
+{
+	local returnCode=0
+	local fzfPreview="git show --color=always --no-ext-diff --stat --decorate=short {1}"
+	local fzfHeader=
+	local tag=
+	local message=
+	local commit=
+	local input=
+	local selection=
+
+	# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
+	tag=$( fzf --phony --print-query --prompt="${FUNCNAME[0]} > enter the name for the new tag > " --reverse <<< "" ) || returnCode=$?
+	(( returnCode == 0 )) || return 0                       # ESC pressed
+
+	tag=${tag%%$'\n'*}
+	[[ -z ${tag} ]] && return 0
+
+	git check-ref-format "refs/tags/${tag}" >/dev/null || return $?
+
+	# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
+	message=$( fzf --phony --print-query --prompt="${FUNCNAME[0]} > enter an optional annotation message for tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} > " --reverse <<< "" ) || returnCode=$?
+	(( returnCode == 0 )) || return 0                       # ESC pressed
+
+	message=${message%%$'\n'*}
+
+	input=$( git log --color=always --format="%H%x09%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" )
+	commit=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --no-sort --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > select the commit that the tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} will point to >" --reverse --with-nth=2.. <<< "${input}" )
+
+	[[ -z ${commit} ]] && return 0
+
+	if [[ -n ${message} ]] ; then git tag --annotate --message="${message}" -- "${tag}" "${commit}" ; else git tag -- "${tag}" "${commit}" ; fi
+
+	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
+	input=$( git remote | awk 'NF { print "remote/" $0 }' )
+	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${FUNCNAME[0]} push( ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} ) > " --reverse <<< "${input}" )
+
+	local target= ; while IFS= read -r target ; do
+		[[ -z ${target} ]] || {
+			target=${target#remote/}
+			git push "${target}" "${tag}"
+		}
+	done <<< "${selection}"
+}
+
+function public:fz::git::fz::completion() { printf '%s\n' add branch diff log stash tag ; }
 
 function public:fz::git::fz::help()
 {
@@ -308,6 +421,7 @@ function public:fz::git::fz::help()
 	            diff              browse changed files and inspect their diffs
 	            log               browse commits and inspect their details
 	            stash             browse, apply, pop, drop or create stashes
+	            tag               browse, checkout (<ENTER>), create (<CTRL> + <N>) or delete (<CTRL> + <D>) tags
 
 	        Examples:
 	            ${APP_NAME} git add
@@ -315,6 +429,7 @@ function public:fz::git::fz::help()
 	            ${APP_NAME} git diff
 	            ${APP_NAME} git log
 	            ${APP_NAME} git stash
+	            ${APP_NAME} git tag
 	HEREDOC
 }
 
@@ -405,7 +520,7 @@ function fz::kill()
 			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
 			"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" \
 			"${FZ_COLOR_STRONG}${signal}${FZ_COLOR_RESET}" \
-			"${FZ_COLOR_MUTED}$( bash -c "builtin kill -l" )${FZ_COLOR_RESET}"
+			"${FZ_COLOR_MUTED}$( bash -c "builtin kill -l" )${FZ_COLOR_RESET}" >&2
 
 		return ${returnCode}
 	}

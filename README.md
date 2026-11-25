@@ -60,6 +60,7 @@ Available commands:
 - `diff`: Browse changed files and inspect their diffs.
 - `log`: Browse commits and inspect commit details.
 - `stash`: Browse existing stashes and inspect their contents. Press `<ENTER>` to apply, `<CTRL> + <P>` to pop, `<CTRL> + <D>` to drop (requires confirmation), or `<CTRL> + <N>` to create a new stash. New stashes include untracked files and optionally accept a message.
+- `tag`: Browse existing tags, checkout a tag using `<ENTER>`, delete tags from local and remote repositories using `<CTRL> + <D>`, or create a new tag using `<CTRL> + <N>`. When creating a tag, choose its name, optionally provide an annotation message, select the target commit and optionally push it to remote repositories.
 
 **Requires git and a Git working tree.**
 
@@ -81,6 +82,9 @@ fz git log
 
 # browse, apply, pop, drop or create stashes
 fz git stash
+
+# browse, checkout, delete or create tags
+fz git tag
 ```
 
 You can pass a query to filter the results:
@@ -91,6 +95,7 @@ fz git branch feature
 fz git diff README
 fz git log initial
 fz git stash refactor
+fz git tag v1
 ```
 
 #### grep [QUERY]
