@@ -78,9 +78,11 @@ The following functions provide common utilities for internal `fz` functions.
 
   Wraps `fzf`, forwarding all arguments and treating exit status `130` (cancellation) as success. This prevents user cancellation from triggering `pipefail` in calling pipelines.
 
-- `fz:api::fzf::confirm [MESSAGE]`
+- `fz:api::fzf::confirm [--context=CONTEXT] [HEADER]`
 
-  Prompts the user to confirm an action using `fzf`, presenting `Yes` and `No` options. `MESSAGE` is displayed as the prompt header and defaults to `Proceed ?` when omitted. The calling function's name is used as the prompt prefix.
+  Prompts the user to confirm an action using `fzf`, presenting `Yes` and `No` options. `HEADER` is displayed above the options and defaults to `Proceed ?` when omitted. Escape sequences in the header are interpreted.
+
+  The calling function's name is used as the prompt context by default. Use `--context=CONTEXT` to override it.
 
   Returns success if the user selects `Yes`, and failure otherwise.
 
@@ -92,24 +94,42 @@ The following functions provide common utilities for internal `fz` functions.
 
   Returns the formatted header through standard output.
 
-- `fz:api::fzf::prompt [COMMAND] [DESCRIPTION]`
+- `fz:api::fzf::prompt [--context=CONTEXT] [DESCRIPTION]`
 
-  Generates a consistent FZF prompt using the format `COMMAND | DESCRIPTION >`.
+  Generates a consistent FZF prompt using the format `CONTEXT | DESCRIPTION >`.
 
-  When called without arguments, the calling function's name is used as the command prefix.
+  By default, the calling function's name is used as the context.
 
-  When one argument is provided, it is used as the description, while the calling function's name remains the prefix.
+  The optional `--context` argument overrides the default context.
 
-  When two arguments are provided, the first argument explicitly defines the command prefix and the second defines the description.
-
-  The description is optional. When omitted or empty, only the command prefix is displayed.
+  `DESCRIPTION` is optional. When omitted or empty, only the context is displayed.
 
   Examples:
 
   ```bash
   fzfPrompt=$( fz:api::fzf::prompt )
   fzfPrompt=$( fz:api::fzf::prompt "select a branch" )
-  fzfPrompt=$( fz:api::fzf::prompt "git" "select a branch" )
+  fzfPrompt=$( fz:api::fzf::prompt --context=fz "select a command" )
+  ```
+
+- `fz:api::log::error [--context=CONTEXT] MESSAGE [DETAILS]`
+
+  Prints an error message to standard error using the format `[fz error] -> CONTEXT: MESSAGE`.
+
+  By default, the calling function's name is used as the context.
+
+  The optional `--context` argument overrides the default context.
+
+  `MESSAGE` is the error description. `DETAILS` is optional and provides additional information, printed separately after the error message.
+
+  Escape sequences such as `\n` and `\t` are interpreted in both `MESSAGE` and `DETAILS`.
+
+  Examples:
+
+  ```bash
+  fz:api::log::error "invalid signal"
+  fz:api::log::error "invalid signal" "${details}"
+  fz:api::log::error --context=fz "unknown command"
   ```
 
 ### Completions

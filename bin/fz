@@ -62,8 +62,7 @@ function fz::git()
 
 	git rev-parse --is-inside-work-tree &>/dev/null || {
 		local returnCode=$?
-
-		printf '[%s]: %s: not a git repository (or any parent up to mount point /)\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" >&2
+		fz:api::log::error "not a git repository (or any parent up to mount point /)"
 		return ${returnCode}
 	}
 
@@ -168,7 +167,7 @@ function fz::git::branch::delete()
 
 	case ${ref} in
 		refs/heads/*)
-			fz:api::fzf::confirm "delete local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branchName}${FZ_COLOR_RESET}" || return 0
+			fz:api::fzf::confirm --context="${FUNCNAME[1]}" "delete local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branchName}${FZ_COLOR_RESET}" || return 0
 			git branch --delete -- "${branchName}"
 		;;
 
@@ -176,7 +175,7 @@ function fz::git::branch::delete()
 			local remote=${branchName#*/}
 			local remoteName=${branchName%%/*}
 
-			fz:api::fzf::confirm "delete remote branch ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteName}/${remote}${FZ_COLOR_RESET}" || return 0
+			fz:api::fzf::confirm --context="${FUNCNAME[1]}" "delete remote branch ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteName}/${remote}${FZ_COLOR_RESET}" || return 0
 			git push "${remoteName}" --delete "${remote}"
 		;;
 	esac
@@ -190,7 +189,7 @@ function fz::git::branch::new()
 	local baseBranch=${ref#refs/heads/}
 	baseBranch=${baseBranch#refs/remotes/}
 
-	fzfPrompt=$( fz:api::fzf::prompt "enter a new branch name" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="fz::git::branch" "enter a new branch name" )
 
 	branchName=$( fz:api::fzf --header="create new branch from ${FZ_COLOR_EMPHASIS}${baseBranch}${FZ_COLOR_RESET}" --phony --print-query --prompt="${fzfPrompt}" --query="${branchName}" --reverse <<< "" )
 	branchName=${branchName%%$'\n'*}
@@ -349,7 +348,7 @@ function fz::git::tag::delete()
 	local selection=
 
 	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
-	fzfPrompt=$( fz:api::fzf::prompt "select remote(s) to delete tag from" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="${FUNCNAME[1]}" "select repository location(s) to delete tag from" )
 
 	input=$( printf '%s\n' "local" "$( git remote | awk 'NF { print "remote/" $0 }' )" )
 	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${fzfPrompt}" --reverse <<< "${input}" )
@@ -369,13 +368,7 @@ function fz::git::tag::delete()
 				else
     				local returnCode=$?
 				    (( returnCode == 2 )) && continue       # tag not found on selected remote, ignore
-
-					printf '[%s]: %s: failed to check tag "%s" on remote "%s".\n' \
-						"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
-						"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" \
-						"${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET}" \
-						"${FZ_COLOR_EMPHASIS}${target}${FZ_COLOR_RESET}" >&2
-
+					fz:api::log::error "failed to check tag \"${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET}\" on remote \"${FZ_COLOR_EMPHASIS}${target}${FZ_COLOR_RESET}\""
 					return ${returnCode}
 				fi
 			;;
@@ -395,7 +388,7 @@ function fz::git::tag::new()
 	local input=
 	local selection=
 
-	fzfPrompt=$( fz:api::fzf::prompt "enter a new tag name" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="${FUNCNAME[1]}" "enter a new tag name" )
 
 	# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
 	tag=$( fzf --header="create a new Git tag" --phony --print-query --prompt="${fzfPrompt}" --reverse <<< "" ) || returnCode=$?
@@ -406,7 +399,7 @@ function fz::git::tag::new()
 
 	git check-ref-format "refs/tags/${tag}" >/dev/null || return $?
 
-	fzfPrompt=$( fz:api::fzf::prompt "enter a tag message (optional)" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="${FUNCNAME[1]}" "enter a tag message (optional)" )
 
 	# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
 	message=$( fzf --header="annotate tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} (optional)" --phony --print-query --prompt="${fzfPrompt}" --reverse <<< "" ) || returnCode=$?
@@ -414,7 +407,7 @@ function fz::git::tag::new()
 
 	message=${message%%$'\n'*}
 
-	fzfPrompt=$( fz:api::fzf::prompt "select a commit" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="${FUNCNAME[1]}" "select a commit" )
 
 	input=$( git log --color=always --format="%H%x09%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" )
 	commit=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --header="select the commit that tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} will point to" --no-sort --preview="${fzfPreview}" --prompt="${fzfPrompt}" --reverse --with-nth=2.. <<< "${input}" )
@@ -424,7 +417,7 @@ function fz::git::tag::new()
 	if [[ -n ${message} ]] ; then git tag --annotate --message="${message}" -- "${tag}" "${commit}" ; else git tag -- "${tag}" "${commit}" ; fi
 
 	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
-	fzfPrompt=$( fz:api::fzf::prompt "select remote(s) to push tag to" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="${FUNCNAME[1]}" "select remote(s) to push tag to" )
 
 	input=$( git remote | awk 'NF { print "remote/" $0 }' )
 	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${fzfPrompt}" --reverse <<< "${input}" )
@@ -549,13 +542,7 @@ function fz::kill()
 
 	fz::kill::isSignal "${signal}" || {
 		local returnCode=$?
-
-		printf '[%s]: Invalid %s signal "%s". Supported signals:\n\n%s\n' \
-			"${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" \
-			"${FZ_COLOR_STRONG}${FUNCNAME[0]}${FZ_COLOR_RESET}" \
-			"${FZ_COLOR_STRONG}${signal}${FZ_COLOR_RESET}" \
-			"${FZ_COLOR_MUTED}$( bash -c "builtin kill -l" )${FZ_COLOR_RESET}" >&2
-
+		fz:api::log::error "invalid signal \"${FZ_COLOR_STRONG}${signal}${FZ_COLOR_RESET}\"" "supported signals:\n\n${FZ_COLOR_MUTED}$( bash -c "builtin kill -l" )${FZ_COLOR_RESET}"
 		return ${returnCode}
 	}
 
@@ -795,7 +782,7 @@ function fz::tmux()
 			if [[ -n "${TMUX:-}" ]] ; then tmux select-window -t "${selectedTarget}" \; select-pane -t "${selectedTarget}" ; else tmux attach -t "${selectedTarget%%:*}" \; select-pane -t "${selectedTarget}" ; fi ;;
 
 		ctrl-k:session|ctrl-k:window|ctrl-k:pane)
-			fz:api::fzf::confirm "Kill ?\n\n\tTMUX ${FZ_COLOR_EMPHASIS}${selectedType}${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selectedTarget}${FZ_COLOR_RESET} )" || return 0
+			fz:api::fzf::confirm "kill ?\n\n\tTMUX ${FZ_COLOR_EMPHASIS}${selectedType}${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selectedTarget}${FZ_COLOR_RESET} )" || return 0
 			tmux kill-"${selectedType}" -t "${selectedTarget}"
 		;;
 	esac
@@ -841,12 +828,20 @@ function fz:api::fzf()
 
 function fz:api::fzf::confirm()
 {
-	local msg=${1:-"Proceed ?"}
+	local -r DEFAULT_HEADER="Proceed ?"
+
+	local context=${FUNCNAME[1]}
+	local msgHeader=${1:-${DEFAULT_HEADER}}
 	local answer=
 
-	printf -v msg '%b\n\n' "${msg}"
+	[[ ${1:-} == --context=* ]] && {
+		context=${1#*=}
+		msgHeader=${2:-${DEFAULT_HEADER}}
+	}
 
-	answer=$( printf '%s\n' 'Yes' 'No' | fz:api::fzf --border=rounded --disabled --header="${msg}" --height=10 --no-info --prompt="${FUNCNAME[1]} > " --reverse )
+	printf -v msgHeader '%b\n\n' "${msgHeader}"
+
+	answer=$( printf '%s\n' 'Yes' 'No' | fz:api::fzf --border=rounded --disabled --header="${msgHeader}" --height=10 --no-info --prompt="${context} > " --reverse )
 	[[ ${answer} == Yes ]]
 }
 
@@ -885,20 +880,38 @@ function fz:api::fzf::header()
 	printf '\n '                                            # trailing space prevents command substitution from stripping the final newline
 }
 
-# shellcheck disable=SC2120                                 # SC2120: foo references arguments, but none are ever passed.
 function fz:api::fzf::prompt()
 {
-	local cmd=${FUNCNAME[1]}
+	local context=${FUNCNAME[1]}
 	local description=${1:-}
 
-	(( $# > 1 )) && {
-		cmd=$1
-		description=$2
+	[[ ${1:-} == --context=* ]] && {
+		context=${1#*=}
+		description=${2:-}
 	}
 
-	printf '%s' "${cmd}"
+	printf '%s' "${context}"
 	[[ -z ${description} ]] || printf ' | %s' "${description}"
 	printf ' > '
+}
+
+fz:api::log::error()
+{
+	local context=${FUNCNAME[1]}
+	local msg=${1:-}
+	local details=${2:-}
+
+	[[ ${1:-} == --context=* ]] && {
+		context=${1#*=}
+		msg=${2:-}
+		details=${3:-}
+	}
+
+	printf -v msg '%b' "${msg}"
+	printf -v details '%b' "${details}"
+
+	printf '[%s] -> %s%s\n' "${FZ_COLOR_ACCENT:-}fz error${FZ_COLOR_RESET:-}" "${FZ_COLOR_STRONG:-}${context}${FZ_COLOR_RESET:-}" "${msg:+: ${msg}}" >&2
+	[[ -z ${details} ]] || printf '\n%s\n' "${details}" >&2
 }
 
 ### core functions
@@ -913,15 +926,13 @@ function fz:core::check()
 
 	fz:core::check::gte "${BASH_VERSION}" "${MIN_VERSION_BASH}" || {
 		local returnCode=$?
-
-		printf '[%s]: Bash %s or newer is required (current: %s)\n' "${APP_NAME} error" "${MIN_VERSION_BASH}" "${BASH_VERSION}" >&2
+		fz:api::log::error --context="${APP_NAME}" "bash ${MIN_VERSION_BASH} or newer is required (current: ${BASH_VERSION})"
 		return ${returnCode}
 	}
 
 	command -v fzf &>/dev/null || {
 		fz:core::theme
-		printf '[%s]: Install "%s" to use %s.\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}" "${APP_NAME}" >&2
-
+		fz:api::log::error --context="${APP_NAME}" "install \"${FZ_COLOR_STRONG}fzf${FZ_COLOR_RESET}\" to use ${APP_NAME}"
 		return 127
 	}
 
@@ -930,9 +941,8 @@ function fz:core::check()
 
 	fz:core::check::gte "${fzfVersion}" "${MIN_VERSION_FZF}" || {
 		local returnCode=$?
-
 		fz:core::theme
-		printf '[%s]: fzf %s or newer is required (current: %s).\n' "${FZ_COLOR_ACCENT}${APP_NAME} error${FZ_COLOR_RESET}" "${FZ_COLOR_STRONG}${MIN_VERSION_FZF}${FZ_COLOR_RESET}" "${fzfVersion}" >&2
+		fz:api::log::error --context="${APP_NAME}" "fzf ${FZ_COLOR_STRONG}${MIN_VERSION_FZF}${FZ_COLOR_RESET} or newer is required (current: ${fzfVersion})"
 		return ${returnCode}
 	}
 }
@@ -1045,7 +1055,7 @@ function fz:core::dispatch()
 	local fzfPreview="$0 public:fz::{}::fz::help | awk '{ sub( /^    /, \"\" ) ; print }'"
 	local fzfPrompt=
 
-	fzfPrompt=$( fz:api::fzf::prompt "${APP_NAME}" "" )
+	fzfPrompt=$( fz:api::fzf::prompt --context="${APP_NAME}" )
 	arg=$( fz:api::fzf --height=30% --preview="${fzfPreview}" --preview-window=right:70% --prompt="${fzfPrompt}" --query="${1:-}" --reverse --select-1 <<< "$( fz:core::commands )" )
 
 	[[ -n ${arg} ]] && {

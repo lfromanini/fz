@@ -61,7 +61,7 @@ function spawnTestProcess()
 	run bash "${FZ_BIN}" kill -NOT_A_SIGNAL
 
 	[[ ${status} == 1 ]]
-	[[ $( stripColors "${output}" ) == *"Invalid fz::kill signal"* ]]
+	[[ $( stripColors "${output}" ) == *'invalid signal "-NOT_A_SIGNAL"'* ]]
 }
 
 @test "fz kill --SIGTERM .............. # [ enter ] kill with invalid signal" {
@@ -70,7 +70,7 @@ function spawnTestProcess()
 	run bash "${FZ_BIN}" kill --SIGTERM
 
 	[[ ${status} == 1 ]]
-	[[ $( stripColors "${output}" ) == *"Invalid fz::kill signal"* ]]
+	[[ $( stripColors "${output}" ) == *'invalid signal "--SIGTERM"'* ]]
 }
 
 @test "fz kill 9 ...................... # [ enter ] kill with invalid signal" {
@@ -79,7 +79,7 @@ function spawnTestProcess()
 	run bash "${FZ_BIN}" kill 9
 
 	[[ ${status} == 1 ]]
-	[[ $( stripColors "${output}" ) == *"Invalid fz::kill signal"* ]]
+	[[ $( stripColors "${output}" ) == *'invalid signal "9"'* ]]
 }
 
 @test "fz kill ........................ # [ ctrl-k ] kill with -SIGKILL" {
