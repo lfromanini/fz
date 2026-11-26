@@ -92,6 +92,26 @@ The following functions provide common utilities for internal `fz` functions.
 
   Returns the formatted header through standard output.
 
+- `fz:api::fzf::prompt [COMMAND] [DESCRIPTION]`
+
+  Generates a consistent FZF prompt using the format `COMMAND | DESCRIPTION >`.
+
+  When called without arguments, the calling function's name is used as the command prefix.
+
+  When one argument is provided, it is used as the description, while the calling function's name remains the prefix.
+
+  When two arguments are provided, the first argument explicitly defines the command prefix and the second defines the description.
+
+  The description is optional. When omitted or empty, only the command prefix is displayed.
+
+  Examples:
+
+  ```bash
+  fzfPrompt=$( fz:api::fzf::prompt )
+  fzfPrompt=$( fz:api::fzf::prompt "select a branch" )
+  fzfPrompt=$( fz:api::fzf::prompt "git" "select a branch" )
+  ```
+
 ### Completions
 
 When adding or removing commands, make sure both Bash and Zsh completions continue to work.

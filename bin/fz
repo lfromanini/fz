@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 readonly APP_NAME=${0##*/}
-readonly VERSION=1.17.7
+readonly VERSION=1.17.8
 
 ### commands
 ##################
@@ -15,14 +15,16 @@ readonly VERSION=1.17.7
 function fz::env()
 {
 	local fzfHeader=
+	local fzfPrompt=
 	local idx=
 	local input=
 	local selection=
 
 	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" -- "CTRL + A" "CTRL + SPACE" "select all" )
+	fzfPrompt=$( fz:api::fzf::prompt "select environment variables" )
 
 	input=$( for idx in "${!__FZ_ENV_SNAPSHOT[@]}" ; do printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${__FZ_ENV_SNAPSHOT[${idx}]}" ; done | sort )
-	selection=$( fz:api::fzf --accept-nth=1 --ansi --bind=ctrl-a:select-all,ctrl-space:select-all --delimiter="=" --header="${fzfHeader}" --multi --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=1 --ansi --bind=ctrl-a:select-all,ctrl-space:select-all --delimiter="=" --header="${fzfHeader}" --multi --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" )
 
 	while IFS= read -r idx ; do
 		[[ -z ${idx} ]] || printf "${FZ_COLOR_PRIMARY}%s${FZ_COLOR_SECONDARY}=${FZ_COLOR_RESET}%q\n" "${idx}" "${!idx}"
@@ -56,6 +58,7 @@ function public:fz::env::fz::help()
 function fz::git()
 {
 	local arg=
+	local fzfPrompt=
 
 	git rev-parse --is-inside-work-tree &>/dev/null || {
 		local returnCode=$?
@@ -64,7 +67,8 @@ function fz::git()
 		return ${returnCode}
 	}
 
-	arg=$( fz:api::fzf --height=30% --prompt="${FUNCNAME[0]} > " --query="${1:-}" --reverse --select-1 <<< "$( public:fz::git::fz::completion )" )
+	fzfPrompt=$( fz:api::fzf::prompt "select a Git command" )
+	arg=$( fz:api::fzf --height=30% --prompt="${fzfPrompt}" --query="${1:-}" --reverse --select-1 <<< "$( public:fz::git::fz::completion )" )
 
 	[[ -z ${arg} ]] || {
 
@@ -78,23 +82,24 @@ function fz::git::add()
 	local cmdPreview="nl -ba"
 	local fzfHeader=
 	local fzfPreview=
+	local fzfPrompt=
 	local binBatcat=
 	local input=
 	local selection=
 
 	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
+	fzfPrompt=$( fz:api::fzf::prompt "select files to stage" )
 
 	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && cmdPreview="${binBatcat} --color=always --style=numbers --terminal-width=\${FZF_PREVIEW_COLUMNS}"
 
 	fzfPreview="
 		fp=\$( awk '{ print substr( \$0, 4 ) }' <<< {} )
-		[[ -n \${fp} ]] || return 0
-		if git ls-files --error-unmatch -- \"\${fp}\" &>/dev/null ; then git diff --color=always HEAD -- \"\${fp}\" | $( fz::git::getPager ) ; else ${cmdPreview} -- \"\${fp}\" ; fi
+		[[ -z \${fp} ]] || if git ls-files --error-unmatch -- \"\${fp}\" &>/dev/null ; then git diff --color=always HEAD -- \"\${fp}\" | $( fz::git::getPager ) ; else ${cmdPreview} -- \"\${fp}\" ; fi
 	"
 
 	input=$( GIT_CONFIG_PARAMETERS="'color.status=always'" git status --null --short --untracked-files=all | xargs -0 -n 1 )
-	selection=$( fz:api::fzf --ansi --header="${fzfHeader}" --multi --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --ansi --header="${fzfHeader}" --multi --preview="${fzfPreview}" --preview-window=right:70% --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" )
 
 	[[ -z ${selection} ]] || {
 		while IFS= read -r input ; do
@@ -110,13 +115,15 @@ function fz::git::branch()
 {
 	local fzfPreview="grep -oE 'refs/(heads|remotes)/[^[:space:]]+' <<< {} | xargs git log --color=always --decorate --graph --max-count=100 --oneline"
 	local fzfHeader=
+	local fzfPrompt=
 	local input=
 	local key=
 	local selection=
 
 	fzfHeader=$( fz:api::fzf::header ENTER "switch to branch" -- "CTRL + D" "delete selected branch" -- "CTRL + N" "create a new branch from selected branch" )
+	fzfPrompt=$( fz:api::fzf::prompt "select a branch" )
 
-	input=$( git for-each-ref --format='%(refname:short)%09%(objectname:short)%09%(committerdate:relative)%09%(refname)%09%(symref)' --sort=-committerdate refs/heads refs/remotes | awk -F '\t' '
+	input=$( git for-each-ref --format="%(refname:short)%09%(objectname:short)%09%(committerdate:relative)%09%(refname)%09%(symref)" --sort=-committerdate refs/heads refs/remotes | awk -F '\t' '
 		$5 == "" {
 			count++
 
@@ -134,7 +141,7 @@ function fz::git::branch()
 		}
 	' )
 
-	selection=$( fz:api::fzf --delimiter=$'\t' --expect=ctrl-d,ctrl-n,enter --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --delimiter=$'\t' --expect=ctrl-d,ctrl-n,enter --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" )
 
 	key=${selection%%$'\n'*}                                # extract the key pressed in fzf
 	selection=${selection#*$'\n'}                           # remove the key from the selection output
@@ -161,7 +168,7 @@ function fz::git::branch::delete()
 
 	case ${ref} in
 		refs/heads/*)
-			fz:api::fzf::confirm "Delete local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branchName}${FZ_COLOR_RESET}" || return 0
+			fz:api::fzf::confirm "delete local branch ?\n\n\t${FZ_COLOR_EMPHASIS}${branchName}${FZ_COLOR_RESET}" || return 0
 			git branch --delete -- "${branchName}"
 		;;
 
@@ -169,7 +176,7 @@ function fz::git::branch::delete()
 			local remote=${branchName#*/}
 			local remoteName=${branchName%%/*}
 
-			fz:api::fzf::confirm "Delete remote branch ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteName}/${remote}${FZ_COLOR_RESET}" || return 0
+			fz:api::fzf::confirm "delete remote branch ?\n\n\t${FZ_COLOR_EMPHASIS}${remoteName}/${remote}${FZ_COLOR_RESET}" || return 0
 			git push "${remoteName}" --delete "${remote}"
 		;;
 	esac
@@ -178,11 +185,14 @@ function fz::git::branch::delete()
 function fz::git::branch::new()
 {
 	local ref=$1
+	local fzfPrompt=
 	local branchName=${ref##*/}
 	local baseBranch=${ref#refs/heads/}
 	baseBranch=${baseBranch#refs/remotes/}
 
-	branchName=$( fz:api::fzf --header="Create new branch from [${FZ_COLOR_EMPHASIS}${baseBranch}${FZ_COLOR_RESET}]" --phony --print-query --prompt="${FUNCNAME[0]} > " --query="${branchName}" --reverse <<< "" )
+	fzfPrompt=$( fz:api::fzf::prompt "enter a new branch name" )
+
+	branchName=$( fz:api::fzf --header="create new branch from ${FZ_COLOR_EMPHASIS}${baseBranch}${FZ_COLOR_RESET}" --phony --print-query --prompt="${fzfPrompt}" --query="${branchName}" --reverse <<< "" )
 	branchName=${branchName%%$'\n'*}
 
 	[[ -z ${branchName} ]] || {
@@ -212,13 +222,15 @@ function fz::git::branch::switch()
 function fz::git::diff()
 {
 	local fzfPreview=
+	local fzfPrompt=
 	local input=
 	local selection=
 
 	fzfPreview="[[ -z {2} ]] || git diff HEAD -- {2} | $( fz::git::getPager )"
+	fzfPrompt=$( fz:api::fzf::prompt "select a file to inspect" )
 
 	input=$( git diff --color=always --name-status HEAD )
-	selection=$( fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=2 --ansi --preview="${fzfPreview}" --preview-window=right:70% --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" )
 
 	[[ -z "${selection}" ]] || git diff HEAD -- "${selection}"
 }
@@ -236,11 +248,14 @@ function fz::git::log()
 	export -f __hashFilter
 
 	local fzfPreview="bash --noprofile --norc -c __hashFilter <<< {} | xargs git show --color=always --format=fuller --stat"
+	local fzfPrompt=
 	local input=
 	local hash=
 
+	fzfPrompt=$( fz:api::fzf::prompt "select a commit" )
+
 	input=$( git log --color=always --format="%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" --graph )
-	hash=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" | __hashFilter )
+	hash=$( fz:api::fzf --ansi --preview="${fzfPreview}" --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" | __hashFilter )
 
 	[[ -z ${hash} ]] || git show --color=always "${hash}"
 }
@@ -249,14 +264,16 @@ function fz::git::stash()
 {
 	local fzfPreview="[[ -z {1} ]] || git stash show --color=always --stat {1}"
 	local fzfHeader=
+	local fzfPrompt=
 	local input=
 	local key=
 	local selection=
 
 	fzfHeader=$( fz:api::fzf::header ENTER "apply stash" -- "CTRL + D" "drop stash" -- "CTRL + N" "create new stash" -- "CTRL + P" "pop stash" )
+	fzfPrompt=$( fz:api::fzf::prompt "select a stash" )
 
 	input=$( git stash list --format="%gd%x09%cr%x09%gs" )
-	selection=$( fz:api::fzf --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n,ctrl-p --header="${fzfHeader}" --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n,ctrl-p --header="${fzfHeader}" --preview="${fzfPreview}" --preview-window=right:70% --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" )
 
 	key=${selection%%$'\n'*}
 	selection=${selection#*$'\n'}
@@ -269,20 +286,20 @@ function fz::git::stash()
 
 		ctrl-d)
 			[[ -z ${selection} ]] || {
-				fz:api::fzf::confirm "Drop stash ?\n\n\t${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET}" || return 0
+				fz:api::fzf::confirm "drop stash ?\n\n\t${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET}" || return 0
 				git stash drop "${selection}"
 			}
 		;;
 
 		ctrl-n)
 			local returnCode=0
+			fzfPrompt=$( fz:api::fzf::prompt "enter a stash message (optional)" )
 
 			# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
-			input=$( fzf --header="Create a new stash (optional message)" --phony --print-query --prompt="${FUNCNAME[0]} > " --reverse <<< "" ) || returnCode=$?
-			input=${input%%$'\n'*}
-
+			input=$( fzf --header="create a new stash (optional message)" --phony --print-query --prompt="${fzfPrompt}" --reverse <<< "" ) || returnCode=$?
 			(( returnCode == 0 )) || return 0               # ESC pressed
 
+			input=${input%%$'\n'*}
 			if [[ -n ${input} ]] ; then git stash push --include-untracked --message "${input}" ; else git stash push --include-untracked ; fi
 		;;
 
@@ -295,14 +312,16 @@ function fz::git::tag()
 {
 	local fzfPreview="git show --color=always --no-ext-diff --stat --decorate=short refs/tags/{1}"
 	local fzfHeader=
+	local fzfPrompt=
 	local input=
 	local selection=
 	local key=
 
 	fzfHeader=$( fz:api::fzf::header ENTER "checkout tag" -- "CTRL + D" "delete tag" -- "CTRL + N" "create new tag" )
+	fzfPrompt=$( fz:api::fzf::prompt "select a tag" )
 
 	input=$( git for-each-ref --color=always --format="%(color:cyan)%(refname:short)%(color:reset)%09%(subject)" --sort=-version:refname refs/tags )
-	selection=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --expect=enter,ctrl-d,ctrl-n --header="${fzfHeader}" --preview="${fzfPreview}" --prompt="${fzfPrompt}" --query="$*" --reverse <<< "${input}" )
 
 	key=${selection%%$'\n'*}
 	selection=${selection#*$'\n'}
@@ -325,13 +344,15 @@ function fz::git::tag::delete()
 {
 	local tag=$1
 	local fzfHeader=
+	local fzfPrompt=
 	local input=
 	local selection=
 
 	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
+	fzfPrompt=$( fz:api::fzf::prompt "select remote(s) to delete tag from" )
 
 	input=$( printf '%s\n' "local" "$( git remote | awk 'NF { print "remote/" $0 }' )" )
-	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${FUNCNAME[0]} > select sources to delete tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} > " --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${fzfPrompt}" --reverse <<< "${input}" )
 
 	local target= ; while IFS= read -r target ; do
 		case ${target} in
@@ -367,14 +388,17 @@ function fz::git::tag::new()
 	local returnCode=0
 	local fzfPreview="git show --color=always --no-ext-diff --stat --decorate=short {1}"
 	local fzfHeader=
+	local fzfPrompt=
 	local tag=
 	local message=
 	local commit=
 	local input=
 	local selection=
 
+	fzfPrompt=$( fz:api::fzf::prompt "enter a new tag name" )
+
 	# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
-	tag=$( fzf --phony --print-query --prompt="${FUNCNAME[0]} > enter the name for the new tag > " --reverse <<< "" ) || returnCode=$?
+	tag=$( fzf --header="create a new Git tag" --phony --print-query --prompt="${fzfPrompt}" --reverse <<< "" ) || returnCode=$?
 	(( returnCode == 0 )) || return 0                       # ESC pressed
 
 	tag=${tag%%$'\n'*}
@@ -382,22 +406,28 @@ function fz::git::tag::new()
 
 	git check-ref-format "refs/tags/${tag}" >/dev/null || return $?
 
+	fzfPrompt=$( fz:api::fzf::prompt "enter a tag message (optional)" )
+
 	# use fzf directly to preserve its exit status and distinguish cancellation (ESC) from confirmation (ENTER)
-	message=$( fzf --phony --print-query --prompt="${FUNCNAME[0]} > enter an optional annotation message for tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} > " --reverse <<< "" ) || returnCode=$?
+	message=$( fzf --header="annotate tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} (optional)" --phony --print-query --prompt="${fzfPrompt}" --reverse <<< "" ) || returnCode=$?
 	(( returnCode == 0 )) || return 0                       # ESC pressed
 
 	message=${message%%$'\n'*}
 
+	fzfPrompt=$( fz:api::fzf::prompt "select a commit" )
+
 	input=$( git log --color=always --format="%H%x09%C(auto)%h%d %s %C(black)%C(bold)%cr%Creset" )
-	commit=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --no-sort --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} > select the commit that the tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} will point to >" --reverse --with-nth=2.. <<< "${input}" )
+	commit=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=$'\t' --header="select the commit that tag ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} will point to" --no-sort --preview="${fzfPreview}" --prompt="${fzfPrompt}" --reverse --with-nth=2.. <<< "${input}" )
 
 	[[ -z ${commit} ]] && return 0
 
 	if [[ -n ${message} ]] ; then git tag --annotate --message="${message}" -- "${tag}" "${commit}" ; else git tag -- "${tag}" "${commit}" ; fi
 
 	fzfHeader=$( fz:api::fzf::header TAB "select / deselect" )
+	fzfPrompt=$( fz:api::fzf::prompt "select remote(s) to push tag to" )
+
 	input=$( git remote | awk 'NF { print "remote/" $0 }' )
-	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${FUNCNAME[0]} push( ${FZ_COLOR_EMPHASIS}${tag}${FZ_COLOR_RESET} ) > " --reverse <<< "${input}" )
+	selection=$( fz:api::fzf --header="${fzfHeader}" --multi --prompt="${fzfPrompt}" --reverse <<< "${input}" )
 
 	local target= ; while IFS= read -r target ; do
 		[[ -z ${target} ]] || {
@@ -438,6 +468,7 @@ function public:fz::git::fz::help()
 function fz::grep()
 {
 	local fzfPreview="nl -ba {1}"
+	local fzfPrompt=
 	local binSearcher=
 	local binBatcat=
 	local input=
@@ -478,8 +509,10 @@ function fz::grep()
 	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && fzfPreview="${binBatcat} --color=always --highlight-line={2} --style=numbers --terminal-width=\${FZF_PREVIEW_COLUMNS} {1}"
 
+	fzfPrompt=$( fz:api::fzf::prompt "search file contents using \`${binSearcher##*/}\`" )
+
 	input=$( ${binSearcher} "${args[@]}" )
-	fp=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${FUNCNAME[0]} ( ${binSearcher##*/} ) > " --reverse <<< "${input}" )
+	fp=$( fz:api::fzf --accept-nth=1 --ansi --delimiter=":" --preview="${fzfPreview}" --prompt="${fzfPrompt}" --reverse <<< "${input}" )
 
 	if [[ -z ${fp} ]] ; then return 0 ; elif [[ -n ${EDITOR:-} ]] ; then ${EDITOR} -- "${fp}" ; else printf '%s\n' "${fp}" ; fi
 }
@@ -509,6 +542,7 @@ function fz::kill()
 	local signal=${1:-"-SIGTERM"}
 	local cmdProcs="ps aux"
 	local fzfHeader=
+	local fzfPrompt=
 	local selection=
 	local key=
 	local pid=
@@ -529,10 +563,9 @@ function fz::kill()
 	[[ ${signal} == -* ]] || signal=-${signal}              # make it "-SIGNAL"
 
 	fzfHeader=$( fz:api::fzf::header ENTER "kill ${signal}" -- "CTRL + K" "kill -SIGKILL" -- "CTRL + R" "refresh process list" )
+	fzfPrompt=$( fz:api::fzf::prompt "select a process" )
 
-	selection=$(
-		fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect=enter,ctrl-k --header="${fzfHeader}" --header-lines=1 --prompt="${FUNCNAME[0]} ${signal} > " --select-1 --tac <<< "$( ${cmdProcs} )"
-	)
+	selection=$( fz:api::fzf --bind="ctrl-r:reload( ${cmdProcs} )" --exact --expect=enter,ctrl-k --header="${fzfHeader}" --header-lines=1 --prompt="${fzfPrompt}" --tac <<< "$( ${cmdProcs} )" )
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
 	selection=${selection#*$'\n'}                           # remove the key line, leaving the selected process
@@ -542,7 +575,7 @@ function fz::kill()
 		enter) ;;
 
 		ctrl-k)
-			fz:api::fzf::confirm "Kill ?\n\n\t${FZ_COLOR_EMPHASIS}SIGKILL${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET} )" || return 0
+			fz:api::fzf::confirm "kill ?\n\n\t${FZ_COLOR_EMPHASIS}SIGKILL${FZ_COLOR_RESET} ( ${FZ_COLOR_EMPHASIS}${selection}${FZ_COLOR_RESET} )" || return 0
 			signal=-SIGKILL
 		;;
 
@@ -596,12 +629,15 @@ function public:fz::kill::fz::help()
 function fz::man()
 {
 	local fzfPreview="awk '{ gsub( /[ (),]/, \" \" ) ; print \$2, \$1 }' <<< {} | xargs man"
+	local fzfPrompt=
 	local binBatcat=
 
 	binBatcat=$( fz:api::command batcat bat )
 	[[ -n ${binBatcat} ]] && fzfPreview+=" | bash -c \"col -bx | ${binBatcat} --color=always --language=man --paging=never --style=plain --terminal-width=\${FZF_PREVIEW_COLUMNS}\""
 
-	fz:api::fzf --preview="${fzfPreview}" --preview-window=right:70% --prompt="${FUNCNAME[0]} > " --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
+	fzfPrompt=$( fz:api::fzf::prompt "select a manual page" )
+
+	fz:api::fzf --preview="${fzfPreview}" --preview-window=right:70% --prompt="${fzfPrompt}" --query="^$*" --reverse --select-1 <<< "$( man -k . 2>/dev/null )" \
 		| awk '{ gsub( /[ (),]/, " " ) ; print $2, $1 }' \
 		| xargs -I {} printf 'man %s\n' {} \
 		| bash
@@ -625,6 +661,7 @@ function fz::ssh()
 
 	local fzfFilter=
 	local fzfPreview=
+	local fzfPrompt=
 	local sshServer=
 
 	local fzfQuery=
@@ -696,10 +733,11 @@ function fz::ssh()
 	AWK
 
 	fzfPreview="ssh -G {} 2>/dev/null | ${fzfFilter}"
+	fzfPrompt=$( fz:api::fzf::prompt "select an SSH host" )
 
 	sshServer=$( bash --noprofile --norc -ic '
-		source <( fz:api::fzf --bash )
-		__fzf_list_hosts | fz:api::fzf --height=30% --preview="'"${fzfPreview}"'" --preview-window=right:70% --prompt="'"${FUNCNAME[0]}"' > " --query="'"${fzfQuery}"'" --reverse --select-1
+		source <( fzf --bash )
+		__fzf_list_hosts | fz:api::fzf --height=30% --preview="'"${fzfPreview}"'" --preview-window=right:70% --prompt="'"${fzfPrompt}"'" --query="'"${fzfQuery}"'" --reverse --select-1
 	' 2>/dev/null )
 
 	[[ -z ${sshServer} ]] || ssh "${sshArgs[@]}" "${sshServer}" -- "${remoteCommand[@]}"
@@ -723,12 +761,14 @@ function public:fz::ssh::fz::help()
 function fz::tmux()
 {
 	local fzfHeader=
+	local fzfPrompt=
 	local selection=
 	local key=
 	local selectedType=
 	local selectedTarget=
 
 	fzfHeader=$( fz:api::fzf::header ENTER "attach / switch" -- "CTRL + K" "kill" )
+	fzfPrompt=$( fz:api::fzf::prompt "select a session, window or pane" )
 
 	selection=$( {
 			tmux list-sessions -F "session #S _ #{session_windows}w"
@@ -736,7 +776,7 @@ function fz::tmux()
 			tmux list-panes -a -F "pane #S:#I.#P #{pane_current_command}"
 		} \
 		| column -t \
-		| fz:api::fzf --expect=enter,ctrl-k --header="${fzfHeader}" --prompt="${FUNCNAME[0]} > " --query="$*" --reverse --select-1 --tmux
+		| fz:api::fzf --expect=enter,ctrl-k --header="${fzfHeader}" --prompt="${fzfPrompt}" --query="$*" --reverse --select-1 --tmux
 	)
 
 	key=${selection%%$'\n'*}                                # fzf --expect outputs the key pressed on the first line
@@ -843,6 +883,22 @@ function fz:api::fzf::header()
 	done
 
 	printf '\n '                                            # trailing space prevents command substitution from stripping the final newline
+}
+
+# shellcheck disable=SC2120                                 # SC2120: foo references arguments, but none are ever passed.
+function fz:api::fzf::prompt()
+{
+	local cmd=${FUNCNAME[1]}
+	local description=${1:-}
+
+	(( $# > 1 )) && {
+		cmd=$1
+		description=$2
+	}
+
+	printf '%s' "${cmd}"
+	[[ -z ${description} ]] || printf ' | %s' "${description}"
+	printf ' > '
 }
 
 ### core functions
@@ -987,8 +1043,10 @@ function fz:core::dispatch()
 	local arg=
 	local returnCode=0
 	local fzfPreview="$0 public:fz::{}::fz::help | awk '{ sub( /^    /, \"\" ) ; print }'"
+	local fzfPrompt=
 
-	arg=$( fz:api::fzf --height=30% --preview="${fzfPreview}" --preview-window=right:70% --prompt="${APP_NAME} > " --query="${1:-}" --reverse --select-1 <<< "$( fz:core::commands )" )
+	fzfPrompt=$( fz:api::fzf::prompt "${APP_NAME}" "" )
+	arg=$( fz:api::fzf --height=30% --preview="${fzfPreview}" --preview-window=right:70% --prompt="${fzfPrompt}" --query="${1:-}" --reverse --select-1 <<< "$( fz:core::commands )" )
 
 	[[ -n ${arg} ]] && {
 
@@ -1085,9 +1143,7 @@ function fz:core::main()
 		;;
 
 		*)
-			fz:core::check || return $?                     # validate runtime requirements
-			fz:core::dispatch "$@"
-		;;
+			fz:core::check && fz:core::dispatch "$@" ;;     # validate runtime requirements and dispatch command if check is ok
 	esac
 
 	return $?
